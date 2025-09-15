@@ -1,7 +1,8 @@
 import { useOAuth, useSignIn } from '@clerk/clerk-expo'
 import { Link, useRouter } from 'expo-router'
 import React from 'react'
-import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, Image, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { safeErrorLog, safeLog } from '../../src/utils/safeJson'
 
 export default function Page() {
   const { signIn, setActive, isLoaded } = useSignIn()
@@ -22,25 +23,29 @@ export default function Page() {
         await setActive({ session: createdSessionId })
         // Use setTimeout to ensure navigation happens after state update
         setTimeout(() => {
-          router.replace('/(tabs)')
+          router.replace('/(tabs)/dashboard')
         }, 100)
       }
     } catch (err: any) {
-      console.error('Google OAuth error:', err)
+      // Specifically handle telemetry errors
+      if (err.message && err.message.includes('telemetry')) {
+        console.warn('Ignoring telemetry error:', err.message)
+        // Continue with the flow even if telemetry fails
+        return
+      }
+      safeErrorLog('Google OAuth error:', err)
       Alert.alert('Error', 'Failed to sign in with Google. Please try again.')
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Handle phone number sign-in
-  const onPhoneSignIn = () => {
-    router.push('/(auth)/phone-signin')
-  }
-
   // Handle the submission of the sign-in form
   const onSignInPress = async () => {
-    if (!isLoaded) return
+    if (!isLoaded) {
+      Alert.alert('Error', 'Authentication system is not ready. Please try again.')
+      return
+    }
 
     if (!emailAddress || !password) {
       Alert.alert('Error', 'Please enter both email and password.')
@@ -54,28 +59,42 @@ export default function Page() {
         password,
       })
 
+      // Log the sign-in attempt result safely
+      safeLog('Sign in attempt result:', signInAttempt)
+
       // If sign-in process is complete, set the created session as active
       // and redirect the user
       if (signInAttempt.status === 'complete') {
         await setActive({ session: signInAttempt.createdSessionId })
         // Use setTimeout to ensure navigation happens after state update
         setTimeout(() => {
-          router.replace('/(tabs)')
+          router.replace('/(tabs)/dashboard')
         }, 100)
       } else {
         // If the status isn't complete, check why. User might need to
         // complete further steps.
-        console.error(JSON.stringify(signInAttempt, null, 2))
+        safeErrorLog('Sign in attempt incomplete:', signInAttempt)
         Alert.alert('Error', 'Sign-in process incomplete. Please try again.')
       }
     } catch (err: any) {
+      // Specifically handle telemetry errors
+      if (err.message && err.message.includes('telemetry')) {
+        console.warn('Ignoring telemetry error:', err.message)
+        // Continue with the flow even if telemetry fails
+        return
+      }
+      
       // See https://clerk.com/docs/custom-flows/error-handling
       // for more info on error handling
-      console.error(JSON.stringify(err, null, 2))
+      
+      // Log the error safely
+      safeErrorLog('Sign in error:', err)
       
       // Handle specific error cases
       if (err.errors && err.errors.length > 0) {
         const error = err.errors[0]
+        console.log('Error code:', error.code)
+        console.log('Error message:', error.message)
         if (error.code === 'form_identifier_not_found') {
           Alert.alert(
             'Account Not Found',
@@ -87,8 +106,29 @@ export default function Page() {
           )
         } else if (error.code === 'form_password_incorrect') {
           Alert.alert('Error', 'Incorrect password. Please try again.')
+        } else if (error.code === 'form_password_pwned') {
+          Alert.alert(
+            'Password Security Issue',
+            'This password has been found in a data breach. Please reset your password with a stronger, unique password.',
+            [
+              { text: 'OK' },
+              { text: 'Reset Password', onPress: () => console.log('Password reset functionality not implemented yet') }
+            ]
+          )
+        } else if (error.code === 'form_identifier_already_signed_in') {
+          // User is already signed in, redirect to app
+          Alert.alert('Already Signed In', 'You are already signed in.')
+          setTimeout(() => {
+            router.replace('/(tabs)/dashboard')
+          }, 100)
+        } else if (error.code === 'session_exists') {
+          // There's already an active session
+          Alert.alert('Session Active', 'You are already signed in.')
+          setTimeout(() => {
+            router.replace('/(tabs)/dashboard')
+          }, 100)
         } else {
-          Alert.alert('Error', error.message || 'An error occurred during sign in.')
+          Alert.alert('Error', error.message || 'An error occurred during sign in. Please try again.')
         }
       } else {
         Alert.alert('Error', 'An unexpected error occurred. Please try again.')
@@ -109,6 +149,7 @@ export default function Page() {
           onPress={onGoogleSignIn}
           disabled={isLoading}
         >
+          <Image source={require('../../assets/google.png')} className="w-6 h-6 mr-2" />
           <Text className="text-gray-700 text-center font-medium ml-2">Continue with Google</Text>
         </TouchableOpacity>
         

@@ -2,6 +2,7 @@ import { useOAuth, useSignUp } from '@clerk/clerk-expo'
 import { Link, useRouter } from 'expo-router'
 import React from 'react'
 import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { safeErrorLog, safeLog } from '../../src/utils/safeJson'
 
 export default function SignUpScreen() {
   const { signUp, setActive, isLoaded } = useSignUp()
@@ -24,25 +25,23 @@ export default function SignUpScreen() {
         await setActive({ session: createdSessionId })
         // Use setTimeout to ensure navigation happens after state update
         setTimeout(() => {
-          router.replace('/(tabs)')
+          router.replace('/(tabs)/dashboard')
         }, 100)
       }
     } catch (err: any) {
-      console.error('Google OAuth error:', err)
+      safeErrorLog('Google OAuth error:', err)
       Alert.alert('Error', 'Failed to sign up with Google. Please try again.')
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Handle phone number sign-up
-  const onPhoneSignUp = () => {
-    router.push('/(auth)/phone-signup')
-  }
-
   // Handle the submission of the sign-up form
   const onSignUpPress = async () => {
-    if (!isLoaded) return
+    if (!isLoaded) {
+      Alert.alert('Error', 'Authentication system is not ready. Please try again.')
+      return
+    }
 
     if (!emailAddress || !password) {
       Alert.alert('Error', 'Please enter both email and password.')
@@ -53,7 +52,7 @@ export default function SignUpScreen() {
       setIsLoading(true)
       
       // Create the user on Clerk
-      await signUp.create({
+      const signUpAttempt = await signUp.create({
         emailAddress,
         password,
       })
@@ -79,15 +78,16 @@ export default function SignUpScreen() {
       setPendingVerification(true)
       Alert.alert('Verification Email Sent', 'Please check your email and enter the verification code.')
     } catch (err: any) {
-      console.error(JSON.stringify(err, null, 2))
+      safeErrorLog('Sign up error:', err)
       
       // Handle specific error cases
       if (err.errors && err.errors.length > 0) {
         const error = err.errors[0]
+        console.log('Error code:', error.code)
         if (error.code === 'form_password_pwned') {
           Alert.alert(
             'Password Security Issue',
-            'This password has been found in a data breach. Please choose a stronger, unique password.',
+            'This password has been found in a data breach. Please choose a stronger, unique password with at least 8 characters including uppercase, lowercase, numbers and symbols.',
             [{ text: 'OK' }]
           )
         } else if (error.code === 'form_identifier_exists') {
@@ -100,7 +100,7 @@ export default function SignUpScreen() {
             ]
           )
         } else {
-          Alert.alert('Error', error.message || 'An error occurred during sign up.')
+          Alert.alert('Error', error.message || 'An error occurred during sign up. Please try again.')
         }
       } else {
         Alert.alert('Error', 'An unexpected error occurred. Please try again.')
@@ -112,7 +112,10 @@ export default function SignUpScreen() {
 
   // This verifies the user using email code that is delivered.
   const onPressVerify = async () => {
-    if (!isLoaded) return
+    if (!isLoaded) {
+      Alert.alert('Error', 'Authentication system is not ready. Please try again.')
+      return
+    }
 
     if (!code) {
       Alert.alert('Error', 'Please enter the verification code.')
@@ -125,12 +128,23 @@ export default function SignUpScreen() {
         code,
       })
 
+      safeLog('Verification result:', completeSignUp)
+
       if (completeSignUp.status === 'complete') {
-        await setActive({ session: completeSignUp.createdSessionId })
-        // Use setTimeout to ensure navigation happens after state update
-        setTimeout(() => {
-          router.replace('/(tabs)')
-        }, 100)
+        // Check if we have a session ID
+        if (completeSignUp.createdSessionId) {
+          await setActive({ session: completeSignUp.createdSessionId })
+          // Use setTimeout to ensure navigation happens after state update
+          setTimeout(() => {
+            router.replace('/(tabs)/dashboard')
+          }, 100)
+        } else {
+          // If no session ID, the user needs to sign in
+          Alert.alert('Success', 'Email verified successfully. Please sign in with your credentials.')
+          setTimeout(() => {
+            router.replace('/(auth)/sign-in')
+          }, 100)
+        }
       } else if (completeSignUp.status === 'missing_requirements') {
         // Check what's missing
         if (completeSignUp.unverifiedFields?.includes('email_address')) {
@@ -139,21 +153,27 @@ export default function SignUpScreen() {
           Alert.alert('Error', 'Additional verification required. Please try again.')
         }
       } else {
-        console.error(JSON.stringify(completeSignUp, null, 2))
+        safeErrorLog('Verification error:', completeSignUp)
         Alert.alert('Error', 'Email verification failed. Please try again.')
       }
     } catch (err: any) {
-      console.error(JSON.stringify(err, null, 2))
+      safeErrorLog('Verification error:', err)
       
       // Handle specific error cases
       if (err.errors && err.errors.length > 0) {
         const error = err.errors[0]
+        console.log('Verification error code:', error.code)
         if (error.code === 'verification_already_verified') {
           Alert.alert(
             'Already Verified',
             'This email has already been verified. You can now sign in.',
             [
-              { text: 'OK', onPress: () => router.replace('/(auth)/sign-in') }
+              { text: 'OK', onPress: () => {
+                  setPendingVerification(false)
+                  setCode('')
+                  router.replace('/(auth)/sign-in')
+                } 
+              }
             ]
           )
         } else if (error.code === 'form_code_incorrect') {
@@ -161,10 +181,10 @@ export default function SignUpScreen() {
         } else if (error.code === 'form_code_expired') {
           Alert.alert('Error', 'Verification code has expired. Please request a new one.')
         } else {
-          Alert.alert('Error', error.message || 'An error occurred during verification.')
+          Alert.alert('Error', error.message || 'An error occurred during verification. Please try again.')
         }
       } else {
-        Alert.alert('Error', 'An unexpected error occurred during verification.')
+        Alert.alert('Error', 'An unexpected error occurred during verification. Please try again.')
       }
     } finally {
       setIsLoading(false)
@@ -172,123 +192,125 @@ export default function SignUpScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50 p-6 justify-center">
-      <View className="rounded-xl bg-white p-8 shadow-sm">
+    <View className="flex-1 bg-gray-100 p-6 justify-center">
+      <Text className="text-4xl text-center font-bold text-gray-800 mb-8">Traffic Fine System</Text>
+      <View className="rounded-3xl bg-white p-8 shadow-sm">
         {!pendingVerification && (
           <>
-            <Text className="text-2xl font-semibold text-gray-800 mb-8 text-center">Create Your Account</Text>
+            <Text className="text-2xl text-center font-semibold text-gray-800 mb-2">Create Your Account</Text>
+            <Text className="text-center text-gray-600 mb-8">Enter your email and password to continue</Text>
           
           {/* Google Sign Up Button */}
           <TouchableOpacity 
-            className="w-full bg-red-500 p-4 rounded-lg mb-4 flex-row items-center justify-center"
+            className="w-full bg-white p-4 rounded-lg mb-4 flex-row items-center justify-center border border-gray-200"
             onPress={onGoogleSignUp}
             disabled={isLoading}
           >
-            <Text className="text-white text-center font-bold ml-2">Sign up with Google</Text>
-          </TouchableOpacity>
-          
-          {/* Phone Sign Up Button */}
-          <TouchableOpacity 
-            className="w-full bg-green-500 p-4 rounded-lg mb-6 flex-row items-center justify-center"
-            onPress={onPhoneSignUp}
-          >
-            <Text className="text-white text-center font-bold ml-2">Sign up with Phone</Text>
+            <Text className="text-gray-700 text-center font-medium ml-2">Continue with Google</Text>
           </TouchableOpacity>
           
           {/* Divider */}
           <View className="flex-row items-center w-full mb-6">
-            <View className="flex-1 h-px bg-gray-300" />
-            <Text className="mx-4 text-gray-500">or</Text>
-            <View className="flex-1 h-px bg-gray-300" />
+            <View className="flex-1 h-px bg-gray-200" />
+            <Text className="mx-4 text-gray-500 text-sm">or continue with email</Text>
+            <View className="flex-1 h-px bg-gray-200" />
           </View>
           
           {/* Email/Password Form */}
-          <TextInput
-            autoCapitalize="none"
-            value={emailAddress}
-            placeholder="Email"
-            className="w-full p-4 border border-gray-300 rounded-lg mb-4"
-            onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
-          />
+          <View className="w-full mb-4">
+            <Text className="text-sm font-medium text-gray-700 mb-2">Email</Text>
+            <TextInput
+              autoCapitalize="none"
+              value={emailAddress}
+              placeholder="Enter your email"
+              className="w-full p-4 border border-gray-300 rounded-lg"
+              onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
+            />
+          </View>
           
-          <TextInput
-            value={password}
-            placeholder="Password"
-            secureTextEntry={true}
-            className="w-full p-4 border border-gray-300 rounded-lg mb-6"
-            onChangeText={(password) => setPassword(password)}
-          />
+          <View className="w-full mb-6">
+            <Text className="text-sm font-medium text-gray-700 mb-2">Password</Text>
+            <TextInput
+              value={password}
+              placeholder="Enter your password"
+              secureTextEntry={true}
+              className="w-full p-4 border border-gray-300 rounded-lg"
+              onChangeText={(password) => setPassword(password)}
+            />
+          </View>
           
           <TouchableOpacity 
-            className="w-full bg-blue-500 p-4 rounded-lg mb-4"
+            className="w-full bg-blue-600 p-4 rounded-lg mb-4"
             onPress={onSignUpPress}
             disabled={isLoading}
           >
-            <Text className="text-white text-center font-bold">
-              {isLoading ? 'Signing up...' : 'Sign up with Email'}
+            <Text className="text-white text-center font-medium">
+              {isLoading ? 'Signing up...' : 'Sign Up'}
             </Text>
           </TouchableOpacity>
           
-            <View className="flex-row gap-2 justify-center">
-              <Text className="text-gray-600">Already have an account?</Text>
-              <Link href="/(auth)/sign-in">
-                <Text className="text-blue-600 font-medium">Sign in</Text>
-              </Link>
-            </View>
+          <View className="flex-row items-center justify-center gap-2 mb-4">
+            <Text className="text-gray-600 text-center">Already have an account?</Text>
+            <Link href="/(auth)/sign-in">
+              <Text className="text-blue-600 font-medium text-center">Sign in</Text>
+            </Link>
+          </View>
           </>
         )}
 
         {pendingVerification && (
           <>
-            <Text className="text-2xl font-semibold text-gray-800 mb-8 text-center">Verify Your Email</Text>
-            <Text className="text-center mb-6 text-gray-600">
-              We've sent a verification code to your email address. Please enter it below.
-            </Text>
+            <Text className="text-2xl text-center font-semibold text-gray-800 mb-2">Verify Your Email</Text>
+            <Text className="text-center text-gray-600 mb-8">We've sent a verification code to your email</Text>
           
-          <TextInput
-            value={code}
-            placeholder="Verification Code"
-            className="w-full p-4 border border-gray-300 rounded-lg mb-6"
-            onChangeText={(code) => setCode(code)}
-            keyboardType="number-pad"
-            maxLength={6}
-          />
+          <View className="w-full mb-4">
+            <Text className="text-sm font-medium text-gray-700 mb-2">Verification Code</Text>
+            <TextInput
+              value={code}
+              placeholder="Enter verification code"
+              className="w-full p-4 border border-gray-300 rounded-lg"
+              onChangeText={(code) => setCode(code)}
+              keyboardType="number-pad"
+              maxLength={6}
+            />
+          </View>
           
           <TouchableOpacity 
-            className="w-full bg-blue-500 p-4 rounded-lg mb-4"
+            className="w-full bg-blue-600 p-4 rounded-lg mb-4"
             onPress={onPressVerify}
             disabled={isLoading}
           >
-            <Text className="text-white text-center font-bold">
+            <Text className="text-white text-center font-medium">
               {isLoading ? 'Verifying...' : 'Verify Email'}
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            className="w-full bg-gray-500 p-4 rounded-lg mb-4"
+            className="w-full bg-gray-200 p-4 rounded-lg mb-4"
             onPress={async () => {
               try {
                 if (signUp) {
                   await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
                   Alert.alert('Code Resent', 'A new verification code has been sent to your email.')
                 }
-              } catch (err) {
+              } catch (err: any) {
+                safeErrorLog('Resend code error:', err)
                 Alert.alert('Error', 'Failed to resend code. Please try again.')
               }
             }}
             disabled={isLoading}
           >
-            <Text className="text-white text-center font-bold">Resend Code</Text>
+            <Text className="text-gray-700 text-center font-medium">Resend Code</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            className="w-full bg-gray-300 p-4 rounded-lg"
+            className="w-full bg-gray-200 p-4 rounded-lg"
             onPress={() => {
               setPendingVerification(false)
               setCode('')
             }}
           >
-            <Text className="text-gray-700 text-center font-bold">Back to Sign Up</Text>
+            <Text className="text-gray-700 text-center font-medium">Back to Sign Up</Text>
           </TouchableOpacity>
           </>
         )}

@@ -21,7 +21,7 @@ export default function VerifyEmailScreen() {
 
       if (completeSignIn.status === 'complete') {
         await setActive({ session: completeSignIn.createdSessionId })
-        router.replace('/(tabs)')
+        router.replace('/(tabs)/dashboard')
       } else {
         console.error(JSON.stringify(completeSignIn, null, 2))
       }

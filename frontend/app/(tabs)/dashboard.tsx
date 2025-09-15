@@ -11,7 +11,7 @@ interface DashboardStats {
 }
 
 export default function DashboardScreen() {
-  const { user } = useUser()
+ const { user } = useUser()
   const router = useRouter()
   
   const [stats, setStats] = useState<DashboardStats>({
@@ -33,7 +33,7 @@ export default function DashboardScreen() {
   return (
     <ScrollView className="flex-1 bg-gray-50">
       <View className="p-6">
-        <Text className="text-2xl font-bold mb-2">Welcome, {user?.firstName}!</Text>
+        <Text className="text-2xl font-bold mb-2">Welcome, {user.firstName} {user.lastName}!</Text>
         <Text className="text-gray-600 mb-6">Traffic Officer Dashboard</Text>
         
         {/* Stats Cards */}

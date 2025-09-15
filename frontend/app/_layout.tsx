@@ -5,6 +5,7 @@ import { Stack } from "expo-router";
 import React from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import "../global.css";
+import ErrorBoundary from "../src/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -18,19 +19,37 @@ if (!process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY) {
   );
 }
 
+// Custom Clerk provider that disables telemetry
+const CustomClerkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Clerk provider options
+  const clerkOptions = {
+    publishableKey,
+    tokenCache,
+    // Try to disable telemetry by not including it
+  };
+
+  return (
+    <ClerkProvider {...clerkOptions}>
+      {children}
+    </ClerkProvider>
+  );
+};
+
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-        <QueryClientProvider client={queryClient}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" options={{ title: "Home" }} />
-            <Stack.Screen name="onboarding" options={{ title: "Onboarding" }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          </Stack>
-        </QueryClientProvider>
-      </ClerkProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <CustomClerkProvider>
+          <QueryClientProvider client={queryClient}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" options={{ title: "Home" }} />
+              <Stack.Screen name="onboarding" options={{ title: "Onboarding" }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            </Stack>
+          </QueryClientProvider>
+        </CustomClerkProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

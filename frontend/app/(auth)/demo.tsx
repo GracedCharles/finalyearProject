@@ -16,7 +16,7 @@ export default function DemoMode() {
           onPress: () => {
             // In demo mode, we'll skip authentication and go directly to the app
             setTimeout(() => {
-              router.replace('/(tabs)')
+              router.replace('/(tabs)/dashboard')
             }, 100)
           }
         }

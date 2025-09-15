@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { Tabs } from 'expo-router'
 import React from 'react'
 import { AuthGuard } from '../../src/components/AuthGuard'
@@ -10,14 +11,45 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: true,
           headerRight: () => <SignOutButton />,
+          tabBarInactiveTintColor: 'gray',
+          tabBarStyle: {
+            backgroundColor: 'white',
+          },
+          tabBarLabelStyle: {
+            fontSize: 12,
+          },
+          tabBarIconStyle: {
+            marginBottom: -3,
+          },
         }}
       >
+        <Tabs.Screen
+          name="index"
+          redirect={true}
+          options={{
+            href: '/(tabs)/dashboard',
+          }}
+        />
         <Tabs.Screen
           name="dashboard"
           options={{
             title: 'Dashboard',
             tabBarLabel: 'Dashboard',
             headerTitle: 'Dashboard',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="view-dashboard" size={24} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="driver-fines"
+          options={{
+            title: 'Driver Fines',
+            tabBarLabel: 'Driver Fines',
+            headerTitle: 'Driver Fines',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="car-wash" size={24} color={color} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -25,7 +57,10 @@ export default function TabLayout() {
           options={{
             title: 'Issue Fine',
             tabBarLabel: 'Issue Fine',
-            headerTitle: 'Issue Traffic Fine',
+            headerTitle: 'Issue New Fine',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="car-wash" size={24} color={color} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -33,15 +68,10 @@ export default function TabLayout() {
           options={{
             title: 'View Fines',
             tabBarLabel: 'View Fines',
-            headerTitle: 'Issued Fines',
-          }}
-        />
-        <Tabs.Screen
-          name="driver-fines"
-          options={{
-            title: 'My Fines',
-            tabBarLabel: 'My Fines',
-            headerTitle: 'My Traffic Fines',
+            headerTitle: 'View Issued Fines',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="car-wash" size={24} color={color} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -50,8 +80,12 @@ export default function TabLayout() {
             title: 'Profile',
             tabBarLabel: 'Profile',
             headerTitle: 'My Profile',
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons name="account" size={24} color={color} />
+            ),
           }}
         />
+        
       </Tabs>
     </AuthGuard>
   )

@@ -1,7 +1,8 @@
 import { useClerk } from '@clerk/clerk-expo'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useRouter } from 'expo-router'
 import React from 'react'
-import { Text, TouchableOpacity } from 'react-native'
+import { TouchableOpacity, View } from 'react-native'
 
 export const SignOutButton = () => {
   // Use `useClerk()` to access the `signOut()` function
@@ -23,11 +24,19 @@ export const SignOutButton = () => {
   }
   
   return (
+    <View className="flex-row items-center justify-between mr-4">
+     {/* Notification icon */}
+     <View className="flex-row items-center justify-center w-12 h-12 bg-gray-300 rounded-full mr-2" >
+     <MaterialCommunityIcons name="bell" size={28} color="black" />
+
+     </View>
+     {/* Sign out button */}
     <TouchableOpacity 
-      className="bg-red-500 px-4 py-2 rounded-lg mr-4"
+      className="bg-red-500 px-4 py-2 rounded-xl ml-2"
       onPress={handleSignOut}
     >
-      <Text className="text-white font-bold">Sign Out</Text>
+      <MaterialCommunityIcons name="logout" size={24} color="white" />
     </TouchableOpacity>
+    </View>
   )
 }

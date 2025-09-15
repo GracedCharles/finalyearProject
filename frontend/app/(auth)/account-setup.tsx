@@ -23,7 +23,7 @@ export default function AccountSetupScreen() {
       })
 
       // Navigate to main app
-      router.replace('/(tabs)')
+      router.replace('/(tabs)/dashboard')
     } catch (error) {
       console.error('Error updating profile:', error)
     }
