@@ -17,6 +17,12 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error) {
+    // For the specific "_a.record is not a function" error, don't show the error boundary
+    if (error.message && error.message.includes('_a.record is not a function')) {
+      console.warn('Ignoring Clerk record error:', error.message);
+      return { hasError: false, error: undefined };
+    }
+    
     // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
   }
@@ -29,6 +35,15 @@ class ErrorBoundary extends React.Component<Props, State> {
     if (error.message && error.message.includes('telemetry')) {
       console.warn('Ignoring telemetry error:', error.message);
       this.setState({ hasError: false, error: undefined });
+      return;
+    }
+    
+    // For the specific "_a.record is not a function" error, try to recover
+    if (error.message && error.message.includes('_a.record is not a function')) {
+      console.warn('Ignoring Clerk record error:', error.message);
+      // Don't set state to prevent infinite loop, just log and continue
+      this.setState({ hasError: false, error: undefined });
+      return;
     }
   }
 

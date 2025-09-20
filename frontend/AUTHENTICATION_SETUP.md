@@ -11,12 +11,14 @@ This guide will help you set up Google OAuth and Phone Number authentication wit
 ## Step 1: Clerk Configuration
 
 ### 1.1 Create a Clerk Application
+
 1. Go to [https://dashboard.clerk.com](https://dashboard.clerk.com)
 2. Click "Add application"
 3. Choose "React Native" as your framework
 4. Name your application (e.g., "Traffic Fine System")
 
 ### 1.2 Configure OAuth Providers
+
 1. In your Clerk dashboard, go to "User & Authentication" → "Social Connections"
 2. Enable Google OAuth:
    - Click on "Google"
@@ -24,6 +26,7 @@ This guide will help you set up Google OAuth and Phone Number authentication wit
    - You'll need to configure this with Google Cloud Console (see Step 2)
 
 ### 1.3 Configure Phone Authentication
+
 1. In your Clerk dashboard, go to "User & Authentication" → "Phone, SMS, and Email"
 2. Enable Phone Number:
    - Toggle "Phone number"
@@ -31,6 +34,7 @@ This guide will help you set up Google OAuth and Phone Number authentication wit
    - Configure your phone number format
 
 ### 1.4 Get Your Publishable Key
+
 1. In your Clerk dashboard, go to "API Keys"
 2. Copy your "Publishable key"
 3. Add it to your `.env` file:
@@ -41,11 +45,13 @@ This guide will help you set up Google OAuth and Phone Number authentication wit
 ## Step 2: Google OAuth Setup
 
 ### 2.1 Create Google Cloud Project
+
 1. Go to [https://console.cloud.google.com](https://console.cloud.google.com)
 2. Create a new project or select existing one
 3. Enable the Google+ API
 
 ### 2.2 Create OAuth 2.0 Credentials
+
 1. Go to "APIs & Services" → "Credentials"
 2. Click "Create Credentials" → "OAuth 2.0 Client IDs"
 3. Choose "Web application"
@@ -54,6 +60,7 @@ This guide will help you set up Google OAuth and Phone Number authentication wit
    - For production: Your Clerk OAuth callback URL
 
 ### 2.3 Configure Clerk with Google
+
 1. In your Clerk dashboard, go to "User & Authentication" → "Social Connections"
 2. Click on "Google"
 3. Enter your Google Client ID and Client Secret
@@ -74,12 +81,14 @@ EXPO_PUBLIC_API_URL=http://localhost:3000
 ## Step 4: Testing
 
 ### 4.1 Google Authentication
+
 1. Run your app: `npx expo start`
 2. Go to the sign-in or sign-up screen
 3. Click "Continue with Google"
 4. Complete the OAuth flow
 
 ### 4.2 Phone Authentication
+
 1. Go to the sign-in or sign-up screen
 2. Click "Continue with Phone"
 3. Enter a valid phone number
@@ -87,14 +96,31 @@ EXPO_PUBLIC_API_URL=http://localhost:3000
 
 ## Step 5: Production Deployment
 
-### 5.1 Update OAuth Redirect URIs
+### 5.1 Create Production Instance
+
+1. In your Clerk dashboard, go to "Instances"
+2. Click "Create Instance"
+3. Choose "Production"
+4. Configure your production instance settings
+
+### 5.2 Update OAuth Redirect URIs
+
 1. In Google Cloud Console, add your production domain
 2. Update Clerk configuration with production URLs
 
-### 5.2 Environment Variables
+### 5.3 Environment Variables
+
 1. Set production environment variables
-2. Use production Clerk publishable key
+2. Use production Clerk publishable key (starts with `pk_live_`)
 3. Configure production SMS provider
+
+### 5.4 Development vs Production Keys
+
+**Important**: You are currently using development keys which have strict usage limits and should not be used in production.
+
+- Development keys start with `pk_test_`
+- Production keys start with `pk_live_`
+- Always use production keys when deploying to production
 
 ## Troubleshooting
 
@@ -115,9 +141,15 @@ EXPO_PUBLIC_API_URL=http://localhost:3000
    - Check that the key is properly set in environment variables
    - Verify the key is for the correct environment (test vs production)
 
+4. **Telemetry Errors**
+   - The app includes fixes for Clerk telemetry errors
+   - If you still see "record is not a function" errors, they are being safely ignored
+   - These errors do not affect functionality
+
 ### Demo Mode
 
 If you want to test the app without setting up authentication:
+
 1. Keep the placeholder key: `pk_test_placeholder`
 2. Use the "Demo Mode" button on the sign-in screen
 3. This will bypass all authentication

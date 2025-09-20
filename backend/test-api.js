@@ -1,67 +1,45 @@
-// Simple test script to verify API endpoints
-const express = require('express');
-const app = express();
-const port = 3000;
+// Simple test script to verify backend API is working
+async function testAPI() {
+  try {
+    console.log('Testing backend API endpoints...');
+    
+    // Test health endpoint
+    console.log('\n1. Testing /health endpoint:');
+    const healthResponse = await fetch('http://localhost:5000/health');
+    console.log('Status:', healthResponse.status);
+    const healthData = await healthResponse.json();
+    console.log('Data:', healthData);
+    
+    // Test test endpoint
+    console.log('\n2. Testing /test endpoint:');
+    const testResponse = await fetch('http://localhost:5000/test');
+    console.log('Status:', testResponse.status);
+    const testData = await testResponse.json();
+    console.log('Data:', testData);
+    
+    // Test user routes (without auth)
+    console.log('\n3. Testing /api/users/setup endpoint (without auth):');
+    const setupResponse = await fetch('http://localhost:5000/api/users/setup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
 
-// Middleware
-app.use(express.json());
-
-// Mock data
-const mockOffenseTypes = [
-  {
-    _id: '1',
-    code: 'SPD001',
-    description: 'Speeding - Exceeding limit by 10-20 km/h',
-    amount: 1000,
-    category: 'Speeding'
-  },
-  {
-    _id: '2',
-    code: 'SPD002',
-    description: 'Speeding - Exceeding limit by 21-30 km/h',
-    amount: 2000,
-    category: 'Speeding'
+      },
+      body: JSON.stringify({
+        firstName: 'Test',
+        lastName: 'User',
+        address: 'Test Address',
+        phoneNumber: '1234567890'
+      })
+    });
+    console.log('Status:', setupResponse.status);
+    const setupText = await setupResponse.text();
+    console.log('Response:', setupText);
+    
+    console.log('\nAPI test completed!');
+  } catch (error) {
+    console.error('API test failed:', error);
   }
-];
+}
 
-const mockFines = [
-  {
-    _id: '1',
-    fineId: 'FN123456',
-    driverLicenseNumber: 'DL123456789',
-    driverName: 'John Doe',
-    vehicleRegistration: 'ABC123',
-    offenseTypeId: '1',
-    offenseDetails: 'Speeding - Exceeding limit by 10-20 km/h',
-    fineAmount: 1000,
-    officerId: 'OFF001',
-    issuedAt: new Date(),
-    dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-    status: 'PENDING'
-  }
-];
-
-// Test endpoints
-app.get('/api/offenses', (req, res) => {
-  res.json(mockOffenseTypes);
-});
-
-app.get('/api/fines/dashboard', (req, res) => {
-  res.json({
-    finesToday: 5,
-    pendingFines: 12,
-    totalCollected: 15000
-  });
-});
-
-app.get('/api/fines/my-fines', (req, res) => {
-  res.json({
-    fines: mockFines,
-    totalPages: 1,
-    currentPage: 1
-  });
-});
-
-app.listen(port, () => {
-  console.log(`Test API server running at http://localhost:${port}`);
-});
+testAPI();

@@ -1,4 +1,5 @@
 import { useUser } from '@clerk/clerk-expo'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native'
@@ -8,6 +9,28 @@ interface DashboardStats {
   finesIssuedToday: number
   pendingPayments: number
   totalCollected: number
+  totalOutstanding: number
+}
+
+// Define icon name type
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+interface StatCard {
+  title: string;
+  value: string | number;
+  icon: IconName;
+  color: string;
+  textColor: string;
+}
+
+interface QuickAction {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: IconName;
+  color: string;
+  iconColor: string;
+  onPress: () => void;
 }
 
 export default function DashboardScreen() {
@@ -18,6 +41,7 @@ export default function DashboardScreen() {
     finesIssuedToday: 0,
     pendingPayments: 0,
     totalCollected: 0,
+    totalOutstanding: 0
   })
 
   // Mock data (would be replaced with API call)
@@ -27,65 +51,185 @@ export default function DashboardScreen() {
       finesIssuedToday: 5,
       pendingPayments: 12,
       totalCollected: 1250,
+      totalOutstanding: 850
     })
   }, [])
 
+  // Quick action items
+  const quickActions: QuickAction[] = [
+    {
+      id: 'issue-fine',
+      title: 'Issue New Fine',
+      subtitle: 'Create a new traffic fine',
+      icon: 'ticket-percent',
+      color: 'bg-green-500',
+      iconColor: 'white',
+      onPress: () => router.push('/(tabs)/issue-fine')
+    },
+    {
+      id: 'view-fines',
+      title: 'View Issued Fines',
+      subtitle: 'Check all fines you\'ve issued',
+      icon: 'clipboard-list',
+      color: 'bg-blue-500',
+      iconColor: 'white',
+      onPress: () => router.push('/(tabs)/view-fines')
+    },
+    {
+      id: 'reports',
+      title: 'Reports & Analytics',
+      subtitle: 'View detailed reports',
+      icon: 'chart-bar',
+      color: 'bg-blue-500',
+      iconColor: 'white',
+      onPress: () => router.push('/(tabs)/reports')
+    },
+    {
+      id: 'audit',
+      title: 'Audit Trail',
+      subtitle: 'View system activity logs',
+      icon: 'history',
+      color: 'bg-blue-500',
+      iconColor: 'white',
+      onPress: () => router.push('/(tabs)/audit')
+    }
+  ]
+
+  // Stat cards data
+  const statCards: StatCard[] = [
+    {
+      title: 'Fines Today',
+      value: stats.finesIssuedToday,
+      icon: 'ticket',
+      color: 'bg-red-500',
+      textColor: 'text-white'
+    },
+    {
+      title: 'Pending Payments',
+      value: stats.pendingPayments,
+      icon: 'clock-outline',
+      color: 'bg-blue-500',
+      textColor: 'text-white'
+    },
+    {
+      title: 'Total Collected',
+      value: `MKW${stats.totalCollected.toLocaleString()}`,
+      icon: 'cash',
+      color: 'bg-green-500',
+      textColor: 'text-white'
+    },
+    {
+      title: 'Total Outstanding',
+      value: `MKW${stats.totalOutstanding.toLocaleString()}`,
+      icon: 'account-clock',
+      color: 'bg-violet-400',
+      textColor: 'text-white'
+    }
+  ]
+
   return (
-    <ScrollView className="flex-1 bg-gray-50">
-      <View className="p-6">
-        <Text className="text-2xl font-bold mb-2">Welcome, {user.firstName} {user.lastName}!</Text>
-        <Text className="text-gray-600 mb-6">Traffic Officer Dashboard</Text>
-        
-        {/* Stats Cards */}
-        <View className="flex-row flex-wrap mb-6">
-          <View className="w-[48%] bg-white rounded-lg p-4 mb-4 mr-[4%] shadow">
-            <Text className="text-gray-600">Fines Today</Text>
-            <Text className="text-3xl font-bold">{stats.finesIssuedToday}</Text>
-          </View>
-          
-          <View className="w-[48%] bg-white rounded-lg p-4 mb-4 shadow">
-            <Text className="text-gray-600">Pending Payments</Text>
-            <Text className="text-3xl font-bold">{stats.pendingPayments}</Text>
-          </View>
-          
-          <View className="w-[48%] bg-white rounded-lg p-4 shadow">
-            <Text className="text-gray-600">Total Collected</Text>
-            <Text className="text-3xl font-bold">${stats.totalCollected}</Text>
+    <ScrollView className="flex-1 bg-gray-100">
+      <View className="p-4">
+        {/* Welcome Header */}
+        <View className="bg-blue-500 to-purple-600 rounded-2xl p-8 mb-6 shadow-lg">
+          <Text className="text-2xl text-white font-bold mb-2">Welcome back, {user?.firstName} {user?.lastName}!</Text>
+          <Text className="text-white text-opacity-90 mt-2">Traffic Officer Dashboard</Text>
+        </View>
+
+        {/* Stats Overview */}
+        <View className="mb-6">
+          <Text className="text-xl font-bold text-gray-800 mb-4">Today's Overview</Text>
+          <View className="flex-row flex-wrap justify-between">
+            {statCards.map((stat, index) => (
+              <View 
+                key={index} 
+                className={`w-[48%] ${stat.color} rounded-2xl p-4 mb-4 shadow`}
+              >
+                <View className="flex-row justify-between items-start">
+                  <View>
+                    <Text className={`${stat.textColor} text-opacity-90`}>{stat.title}</Text>
+                    <Text className={`text-2xl font-bold ${stat.textColor} mt-1`}>{stat.value}</Text>
+                  </View>
+                  <MaterialCommunityIcons 
+                    name={stat.icon} 
+                    size={24} 
+                    color={stat.textColor === 'text-white' ? 'white' : 'black'} 
+                  />
+                </View>
+              </View>
+            ))}
           </View>
         </View>
-        
+
         {/* Quick Actions */}
-        <Text className="text-xl font-bold mb-4">Quick Actions</Text>
-        
-        <TouchableOpacity 
-          className="bg-white rounded-lg p-4 mb-4 shadow"
-          onPress={() => router.push('/(tabs)/issue-fine')}
-        >
-          <Text className="text-lg font-semibold">Issue New Fine</Text>
-          <Text className="text-gray-600">Create a new traffic fine</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          className="bg-white rounded-lg p-4 mb-4 shadow"
-          onPress={() => router.push('/(tabs)/view-fines')}
-        >
-          <Text className="text-lg font-semibold">View Issued Fines</Text>
-          <Text className="text-gray-600">Check all fines you've issued</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          className="bg-white rounded-lg p-4 mb-4 shadow"
-        >
-          <Text className="text-lg font-semibold">Reports & Analytics</Text>
-          <Text className="text-gray-600">View detailed reports</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          className="bg-white rounded-lg p-4 shadow"
-        >
-          <Text className="text-lg font-semibold">Audit Trail</Text>
-          <Text className="text-gray-600">View system activity logs</Text>
-        </TouchableOpacity>
+        <View className="mb-6 bg-white border border-gray-300 rounded-2xl p-4 shadow rounded-2xl overflow-hidden"> 
+          <Text className="text-xl font-bold text-gray-800 mb-4">Quick Actions</Text>
+          <View className="space-y-4 rounded-lg">
+            {quickActions.map((action) => (
+              <TouchableOpacity 
+                key={action.id}
+                className="flex-row items-center rounded-2xl py-4 border-b border-gray-300"
+                onPress={action.onPress}
+              >
+                <View className={`w-12 h-12 ${action.color} rounded-full p-2 items-center justify-center`}>
+                  <MaterialCommunityIcons 
+                    name={action.icon} 
+                    size={24} 
+                    color={action.iconColor} 
+                  />
+                </View>
+                <View className="ml-4 flex-1">
+                  <Text className="text-lg font-semibold text-gray-900">{action.title}</Text>
+                  <Text className="text-gray-600">{action.subtitle}</Text>
+                </View>
+                <MaterialCommunityIcons 
+                  name="chevron-right" 
+                  size={24} 
+                  color="#9CA3AF" 
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Recent Activity */}
+        <View className="bg-white border border-gray-300 rounded-2xl p-4 shadow mb-6">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-lg font-bold text-gray-800">Recent Activity</Text>
+            <TouchableOpacity>
+              <Text className="text-blue-500">View All</Text>
+            </TouchableOpacity>
+          </View>
+          <View className="space-y-6">
+            <View className="flex-row items-center justify-between">
+              <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center">
+                <MaterialCommunityIcons name="ticket" size={20} color="#3B82F6" />
+              </View>
+              <View className="ml-3 flex-row justify-between flex-1">
+                <Text className="font-medium text-gray-900">Fine #FN-2023-001 issued</Text>
+                <Text className="text-gray-500 text-sm">2 hours ago</Text>
+              </View>
+            </View>
+            <View className="flex-row items-center mt-4">
+              <View className="w-10 h-10 bg-green-100 rounded-full items-center justify-center">
+                <MaterialCommunityIcons name="cash" size={20} color="#10B981" />
+              </View>
+              <View className="ml-3 flex-row justify-between flex-1">
+                <Text className="font-medium text-gray-900">Payment received</Text>
+                <Text className="text-gray-500 text-sm">5 hours ago</Text>
+              </View>
+            </View>
+            <View className="flex-row items-center mt-4">
+              <View className="w-10 h-10 bg-purple-100 rounded-full items-center justify-center">
+                <MaterialCommunityIcons name="account" size={20} color="#8B5CF6" />
+              </View>
+              <View className="ml-3 flex-row items-center justify-between flex-1">
+                <Text className="font-medium text-gray-900">New driver registered</Text>
+                <Text className="text-gray-500 text-sm">Yesterday</Text>
+              </View>
+            </View>
+          </View>
+        </View>
       </View>
     </ScrollView>
   )

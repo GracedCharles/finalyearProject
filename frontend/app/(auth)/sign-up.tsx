@@ -1,35 +1,41 @@
 import { useOAuth, useSignUp } from '@clerk/clerk-expo'
 import { Link, useRouter } from 'expo-router'
-import React from 'react'
-import { Alert, Text, TextInput, TouchableOpacity, View } from 'react-native'
-import { safeErrorLog, safeLog } from '../../src/utils/safeJson'
+import React, { useState } from 'react'
+import { Alert, Image, Text, TextInput, TouchableOpacity, View } from 'react-native'
 
 export default function SignUpScreen() {
   const { signUp, setActive, isLoaded } = useSignUp()
   const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' })
   const router = useRouter()
 
-  const [emailAddress, setEmailAddress] = React.useState('')
-  const [password, setPassword] = React.useState('')
-  const [pendingVerification, setPendingVerification] = React.useState(false)
-  const [code, setCode] = React.useState('')
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [emailAddress, setEmailAddress] = useState('')
+  const [password, setPassword] = useState('')
+  const [pendingVerification, setPendingVerification] = useState(false)
+  const [code, setCode] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   // Handle Google OAuth sign-up
   const onGoogleSignUp = async () => {
+    if (!isLoaded || !startOAuthFlow) {
+      Alert.alert('Error', 'Authentication system is not ready. Please try again.')
+      return
+    }
+    
     try {
       setIsLoading(true)
-      const { createdSessionId, setActive } = await startOAuthFlow()
+      const { createdSessionId, setActive: oauthSetActive } = await startOAuthFlow()
       
-      if (createdSessionId && setActive) {
-        await setActive({ session: createdSessionId })
-        // Use setTimeout to ensure navigation happens after state update
-        setTimeout(() => {
-          router.replace('/(tabs)/dashboard')
-        }, 100)
+      if (createdSessionId && oauthSetActive) {
+        await oauthSetActive({ session: createdSessionId })
+        router.replace('/(tabs)/dashboard')
       }
     } catch (err: any) {
-      safeErrorLog('Google OAuth error:', err)
+      console.log('Google OAuth error:', err)
+      // Check if it's a user cancellation error
+      if (err?.errors?.[0]?.code === 'oauth_callback_error') {
+        // User cancelled, no need to show error
+        return
+      }
       Alert.alert('Error', 'Failed to sign up with Google. Please try again.')
     } finally {
       setIsLoading(false)
@@ -38,7 +44,7 @@ export default function SignUpScreen() {
 
   // Handle the submission of the sign-up form
   const onSignUpPress = async () => {
-    if (!isLoaded) {
+    if (!isLoaded || !signUp) {
       Alert.alert('Error', 'Authentication system is not ready. Please try again.')
       return
     }
@@ -59,7 +65,7 @@ export default function SignUpScreen() {
 
       // Check if we're using a placeholder key (demo mode)
       if (!process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || 
-          process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY === 'pk_test_placeholder') {
+          process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY.includes('placeholder')) {
         // In demo mode, skip email verification
         Alert.alert(
           'Demo Mode',
@@ -78,16 +84,16 @@ export default function SignUpScreen() {
       setPendingVerification(true)
       Alert.alert('Verification Email Sent', 'Please check your email and enter the verification code.')
     } catch (err: any) {
-      safeErrorLog('Sign up error:', err)
+      console.log('Sign up error:', err)
       
       // Handle specific error cases
       if (err.errors && err.errors.length > 0) {
         const error = err.errors[0]
-        console.log('Error code:', error.code)
+        
         if (error.code === 'form_password_pwned') {
           Alert.alert(
             'Password Security Issue',
-            'This password has been found in a data breach. Please choose a stronger, unique password with at least 8 characters including uppercase, lowercase, numbers and symbols.',
+            'This password has been found in a data breach. Please choose a stronger, unique password.',
             [{ text: 'OK' }]
           )
         } else if (error.code === 'form_identifier_exists') {
@@ -112,7 +118,7 @@ export default function SignUpScreen() {
 
   // This verifies the user using email code that is delivered.
   const onPressVerify = async () => {
-    if (!isLoaded) {
+    if (!isLoaded || !signUp) {
       Alert.alert('Error', 'Authentication system is not ready. Please try again.')
       return
     }
@@ -128,41 +134,32 @@ export default function SignUpScreen() {
         code,
       })
 
-      safeLog('Verification result:', completeSignUp)
+      console.log('Verification result:', completeSignUp)
 
       if (completeSignUp.status === 'complete') {
         // Check if we have a session ID
         if (completeSignUp.createdSessionId) {
           await setActive({ session: completeSignUp.createdSessionId })
-          // Use setTimeout to ensure navigation happens after state update
-          setTimeout(() => {
-            router.replace('/(tabs)/dashboard')
-          }, 100)
+          // Redirect to account setup instead of dashboard
+          router.replace('/(auth)/account-setup')
         } else {
           // If no session ID, the user needs to sign in
           Alert.alert('Success', 'Email verified successfully. Please sign in with your credentials.')
-          setTimeout(() => {
-            router.replace('/(auth)/sign-in')
-          }, 100)
+          router.replace('/(auth)/sign-in')
         }
       } else if (completeSignUp.status === 'missing_requirements') {
-        // Check what's missing
-        if (completeSignUp.unverifiedFields?.includes('email_address')) {
-          Alert.alert('Error', 'Email verification is still required.')
-        } else {
-          Alert.alert('Error', 'Additional verification required. Please try again.')
-        }
+        Alert.alert('Error', 'Additional verification required. Please try again.')
       } else {
-        safeErrorLog('Verification error:', completeSignUp)
+        console.log('Verification error:', completeSignUp)
         Alert.alert('Error', 'Email verification failed. Please try again.')
       }
     } catch (err: any) {
-      safeErrorLog('Verification error:', err)
+      console.log('Verification error:', err)
       
       // Handle specific error cases
       if (err.errors && err.errors.length > 0) {
         const error = err.errors[0]
-        console.log('Verification error code:', error.code)
+        
         if (error.code === 'verification_already_verified') {
           Alert.alert(
             'Already Verified',
@@ -191,6 +188,15 @@ export default function SignUpScreen() {
     }
   }
 
+  // Show loading state while Clerk initializes
+  if (!isLoaded) {
+    return (
+      <View className="flex-1 bg-gray-100 p-6 justify-center items-center">
+        <Text className="text-lg">Loading authentication...</Text>
+      </View>
+    )
+  }
+
   return (
     <View className="flex-1 bg-gray-100 p-6 justify-center">
       <Text className="text-4xl text-center font-bold text-gray-800 mb-8">Traffic Fine System</Text>
@@ -206,7 +212,10 @@ export default function SignUpScreen() {
             onPress={onGoogleSignUp}
             disabled={isLoading}
           >
-            <Text className="text-gray-700 text-center font-medium ml-2">Continue with Google</Text>
+            <Image source={require('../../assets/google.png')} className="w-6 h-6 mr-2" />
+            <Text className="text-gray-700 text-center font-medium ml-2">
+              {isLoading ? 'Signing up...' : 'Continue with Google'}
+            </Text>
           </TouchableOpacity>
           
           {/* Divider */}
@@ -224,7 +233,8 @@ export default function SignUpScreen() {
               value={emailAddress}
               placeholder="Enter your email"
               className="w-full p-4 border border-gray-300 rounded-lg"
-              onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
+              onChangeText={setEmailAddress}
+              editable={!isLoading}
             />
           </View>
           
@@ -235,7 +245,8 @@ export default function SignUpScreen() {
               placeholder="Enter your password"
               secureTextEntry={true}
               className="w-full p-4 border border-gray-300 rounded-lg"
-              onChangeText={(password) => setPassword(password)}
+              onChangeText={setPassword}
+              editable={!isLoading}
             />
           </View>
           
@@ -251,8 +262,10 @@ export default function SignUpScreen() {
           
           <View className="flex-row items-center justify-center gap-2 mb-4">
             <Text className="text-gray-600 text-center">Already have an account?</Text>
-            <Link href="/(auth)/sign-in">
-              <Text className="text-blue-600 font-medium text-center">Sign in</Text>
+            <Link href="/(auth)/sign-in" asChild>
+              <TouchableOpacity>
+                <Text className="text-blue-600 font-medium text-center">Sign in</Text>
+              </TouchableOpacity>
             </Link>
           </View>
           </>
@@ -269,9 +282,10 @@ export default function SignUpScreen() {
               value={code}
               placeholder="Enter verification code"
               className="w-full p-4 border border-gray-300 rounded-lg"
-              onChangeText={(code) => setCode(code)}
+              onChangeText={setCode}
               keyboardType="number-pad"
               maxLength={6}
+              editable={!isLoading}
             />
           </View>
           
@@ -294,7 +308,7 @@ export default function SignUpScreen() {
                   Alert.alert('Code Resent', 'A new verification code has been sent to your email.')
                 }
               } catch (err: any) {
-                safeErrorLog('Resend code error:', err)
+                console.log('Resend code error:', err)
                 Alert.alert('Error', 'Failed to resend code. Please try again.')
               }
             }}
@@ -309,6 +323,7 @@ export default function SignUpScreen() {
               setPendingVerification(false)
               setCode('')
             }}
+            disabled={isLoading}
           >
             <Text className="text-gray-700 text-center font-medium">Back to Sign Up</Text>
           </TouchableOpacity>

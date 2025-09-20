@@ -48,7 +48,7 @@ export default function TabLayout() {
             tabBarLabel: 'Driver Fines',
             headerTitle: 'Driver Fines',
             tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="car-wash" size={24} color={color} />
+              <MaterialCommunityIcons name="account-tie" size={24} color={color} />
             ),
           }}
         />
@@ -59,7 +59,7 @@ export default function TabLayout() {
             tabBarLabel: 'Issue Fine',
             headerTitle: 'Issue New Fine',
             tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="car-wash" size={24} color={color} />
+              <MaterialCommunityIcons name="plus" size={24} color={color} />
             ),
           }}
         />
@@ -70,7 +70,7 @@ export default function TabLayout() {
             tabBarLabel: 'View Fines',
             headerTitle: 'View Issued Fines',
             tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="car-wash" size={24} color={color} />
+              <MaterialCommunityIcons name="car" size={24} color={color} />
             ),
           }}
         />
@@ -81,7 +81,7 @@ export default function TabLayout() {
             tabBarLabel: 'Profile',
             headerTitle: 'My Profile',
             tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="account" size={24} color={color} />
+              <MaterialCommunityIcons name="cog-outline" size={24} color={color} />
             ),
           }}
         />

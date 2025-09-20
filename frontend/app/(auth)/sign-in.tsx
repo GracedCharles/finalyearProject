@@ -1,39 +1,42 @@
 import { useOAuth, useSignIn } from '@clerk/clerk-expo'
 import { Link, useRouter } from 'expo-router'
-import React from 'react'
+import React, { useState } from 'react'
 import { Alert, Image, Text, TextInput, TouchableOpacity, View } from 'react-native'
-import { safeErrorLog, safeLog } from '../../src/utils/safeJson'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function Page() {
-  const { signIn, setActive, isLoaded } = useSignIn()
+  const [emailAddress, setEmailAddress] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  
+  // Clerk hooks - v2.15.0 has better initialization
+  const { isLoaded, signIn, setActive } = useSignIn()
   const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' })
+  
   const router = useRouter()
-
-  const [emailAddress, setEmailAddress] = React.useState('')
-  const [password, setPassword] = React.useState('')
-  const [isLoading, setIsLoading] = React.useState(false)
 
   // Handle Google OAuth sign-in
   const onGoogleSignIn = async () => {
+    if (!isLoaded || !startOAuthFlow) {
+      Alert.alert('Error', 'Authentication system is not ready. Please try again.')
+      return
+    }
+    
     try {
       setIsLoading(true)
-      const { createdSessionId, setActive } = await startOAuthFlow()
+      const { createdSessionId, setActive: oauthSetActive } = await startOAuthFlow()
       
-      if (createdSessionId && setActive) {
-        await setActive({ session: createdSessionId })
-        // Use setTimeout to ensure navigation happens after state update
-        setTimeout(() => {
-          router.replace('/(tabs)/dashboard')
-        }, 100)
+      if (createdSessionId && oauthSetActive) {
+        await oauthSetActive({ session: createdSessionId })
+        router.replace('/(tabs)/dashboard')
       }
     } catch (err: any) {
-      // Specifically handle telemetry errors
-      if (err.message && err.message.includes('telemetry')) {
-        console.warn('Ignoring telemetry error:', err.message)
-        // Continue with the flow even if telemetry fails
+      console.log('Google OAuth error:', err)
+      // Check if it's a user cancellation error
+      if (err?.errors?.[0]?.code === 'oauth_callback_error') {
+        // User cancelled, no need to show error
         return
       }
-      safeErrorLog('Google OAuth error:', err)
       Alert.alert('Error', 'Failed to sign in with Google. Please try again.')
     } finally {
       setIsLoading(false)
@@ -42,7 +45,7 @@ export default function Page() {
 
   // Handle the submission of the sign-in form
   const onSignInPress = async () => {
-    if (!isLoaded) {
+    if (!isLoaded || !signIn || !setActive) {
       Alert.alert('Error', 'Authentication system is not ready. Please try again.')
       return
     }
@@ -52,53 +55,37 @@ export default function Page() {
       return
     }
 
-    // Start the sign-in process using the email and password provided
     try {
+      setIsLoading(true)
       const signInAttempt = await signIn.create({
         identifier: emailAddress,
         password,
       })
 
-      // Log the sign-in attempt result safely
-      safeLog('Sign in attempt result:', signInAttempt)
-
-      // If sign-in process is complete, set the created session as active
-      // and redirect the user
       if (signInAttempt.status === 'complete') {
         await setActive({ session: signInAttempt.createdSessionId })
-        // Use setTimeout to ensure navigation happens after state update
-        setTimeout(() => {
-          router.replace('/(tabs)/dashboard')
-        }, 100)
+        router.replace('/(tabs)/dashboard')
       } else {
-        // If the status isn't complete, check why. User might need to
-        // complete further steps.
-        safeErrorLog('Sign in attempt incomplete:', signInAttempt)
-        Alert.alert('Error', 'Sign-in process incomplete. Please try again.')
+        // Handle incomplete sign-in
+        if (signInAttempt.status === 'needs_first_factor') {
+          Alert.alert('Verification Required', 'Please check your email for verification code.')
+        } else if (signInAttempt.status === 'needs_second_factor') {
+          Alert.alert('2FA Required', 'Please enter your two-factor authentication code.')
+        } else {
+          Alert.alert('Incomplete', 'Sign-in process not completed. Please try again.')
+        }
       }
     } catch (err: any) {
-      // Specifically handle telemetry errors
-      if (err.message && err.message.includes('telemetry')) {
-        console.warn('Ignoring telemetry error:', err.message)
-        // Continue with the flow even if telemetry fails
-        return
-      }
-      
-      // See https://clerk.com/docs/custom-flows/error-handling
-      // for more info on error handling
-      
-      // Log the error safely
-      safeErrorLog('Sign in error:', err)
+      console.log('Sign in error:', err)
       
       // Handle specific error cases
       if (err.errors && err.errors.length > 0) {
         const error = err.errors[0]
-        console.log('Error code:', error.code)
-        console.log('Error message:', error.message)
+        
         if (error.code === 'form_identifier_not_found') {
           Alert.alert(
             'Account Not Found',
-            'No account found with this email address. Please check your email or sign up for a new account.',
+            'No account found with this email address.',
             [
               { text: 'OK' },
               { text: 'Sign Up', onPress: () => router.push('/(auth)/sign-up') }
@@ -106,38 +93,28 @@ export default function Page() {
           )
         } else if (error.code === 'form_password_incorrect') {
           Alert.alert('Error', 'Incorrect password. Please try again.')
-        } else if (error.code === 'form_password_pwned') {
-          Alert.alert(
-            'Password Security Issue',
-            'This password has been found in a data breach. Please reset your password with a stronger, unique password.',
-            [
-              { text: 'OK' },
-              { text: 'Reset Password', onPress: () => console.log('Password reset functionality not implemented yet') }
-            ]
-          )
-        } else if (error.code === 'form_identifier_already_signed_in') {
-          // User is already signed in, redirect to app
-          Alert.alert('Already Signed In', 'You are already signed in.')
-          setTimeout(() => {
-            router.replace('/(tabs)/dashboard')
-          }, 100)
-        } else if (error.code === 'session_exists') {
-          // There's already an active session
-          Alert.alert('Session Active', 'You are already signed in.')
-          setTimeout(() => {
-            router.replace('/(tabs)/dashboard')
-          }, 100)
         } else {
-          Alert.alert('Error', error.message || 'An error occurred during sign in. Please try again.')
+          Alert.alert('Error', error.message || 'An error occurred during sign in.')
         }
       } else {
         Alert.alert('Error', 'An unexpected error occurred. Please try again.')
       }
+    } finally {
+      setIsLoading(false)
     }
   }
 
+  // Show loading state while Clerk initializes
+  if (!isLoaded) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-100 p-6 justify-center items-center">
+        <Text className="text-lg">Loading authentication...</Text>
+      </SafeAreaView>
+    )
+  }
+
   return (
-    <View className="flex-1 bg-gray-100 p-6 justify-center">
+    <SafeAreaView className="flex-1 bg-gray-100 p-6 justify-center">
       <Text className="text-4xl text-center font-bold text-gray-800 mb-8">Traffic Fine System</Text>
       <View className="rounded-3xl bg-white p-8 shadow-sm">
         <Text className="text-2xl text-center font-semibold text-gray-800 mb-2">Sign In to Your Account</Text>
@@ -150,7 +127,9 @@ export default function Page() {
           disabled={isLoading}
         >
           <Image source={require('../../assets/google.png')} className="w-6 h-6 mr-2" />
-          <Text className="text-gray-700 text-center font-medium ml-2">Continue with Google</Text>
+          <Text className="text-gray-700 text-center font-medium ml-2">
+            {isLoading ? 'Signing in...' : 'Continue with Google'}
+          </Text>
         </TouchableOpacity>
         
         {/* Divider */}
@@ -168,7 +147,8 @@ export default function Page() {
             value={emailAddress}
             placeholder="Enter your email"
             className="w-full p-4 border border-gray-300 rounded-lg"
-            onChangeText={(emailAddress) => setEmailAddress(emailAddress)}
+            onChangeText={setEmailAddress}
+            editable={!isLoading}
           />
         </View>
         
@@ -179,7 +159,8 @@ export default function Page() {
             placeholder="Enter your password"
             secureTextEntry={true}
             className="w-full p-4 border border-gray-300 rounded-lg"
-            onChangeText={(password) => setPassword(password)}
+            onChangeText={setPassword}
+            editable={!isLoading}
           />
         </View>
         
@@ -195,11 +176,13 @@ export default function Page() {
         
         <View className="flex-row items-center justify-center gap-2 mb-4">
           <Text className="text-gray-600 text-center">Don't have an account?</Text>
-          <Link href="/(auth)/sign-up">
-            <Text className="text-blue-600 font-medium text-center">Sign up</Text>
+          <Link href="/(auth)/sign-up" asChild>
+            <TouchableOpacity>
+              <Text className="text-blue-600 font-medium text-center">Sign up</Text>
+            </TouchableOpacity>
           </Link>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   )
 }

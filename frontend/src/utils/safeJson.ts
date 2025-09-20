@@ -11,11 +11,53 @@ export function safeStringify(obj: any, space: number = 2): string {
     return JSON.stringify(obj, (key, val) => {
       // Handle circular references
       if (val != null && typeof val == "object") {
+        // Check for special objects that might cause issues
+        if (val instanceof Error) {
+          // Convert Error objects to plain objects
+          const errorObj: any = {
+            name: val.name,
+            message: val.message,
+            stack: val.stack
+          };
+          
+          // Add any additional properties
+          Object.getOwnPropertyNames(val).forEach(propName => {
+            if (!(propName in errorObj)) {
+              errorObj[propName] = (val as any)[propName];
+            }
+          });
+          
+          // Check for circular references in the error object
+          if (seen.has(errorObj)) {
+            return "[Circular Error Reference]";
+          }
+          seen.add(errorObj);
+          return errorObj;
+        }
+        
         if (seen.has(val)) {
           return "[Circular Reference]";
         }
         seen.add(val);
       }
+      
+      // Handle functions and other non-serializable values
+      if (typeof val === 'function') {
+        return `[Function: ${val.name || 'anonymous'}]`;
+      }
+      
+      if (typeof val === 'undefined') {
+        return '[undefined]';
+      }
+      
+      if (val === null) {
+        return null;
+      }
+      
+      if (val instanceof Date) {
+        return val.toISOString();
+      }
+      
       return val;
     }, space);
   } catch (error) {
@@ -48,7 +90,25 @@ export function safeLog(prefix: string, obj: any): void {
  */
 export function safeErrorLog(prefix: string, error: any): void {
   try {
-    console.error(prefix, safeStringify(error));
+    // Special handling for Clerk errors which may contain circular references
+    if (error && typeof error === 'object' && error.constructor.name.includes('Clerk')) {
+      // Create a shallow copy with only serializable properties
+      const errorCopy: any = {};
+      for (const key in error) {
+        if (Object.prototype.hasOwnProperty.call(error, key)) {
+          try {
+            // Try to stringify each property to check if it's serializable
+            JSON.stringify(error[key]);
+            errorCopy[key] = error[key];
+          } catch (e) {
+            errorCopy[key] = `[Non-serializable: ${typeof error[key]}]`;
+          }
+        }
+      }
+      console.error(prefix, safeStringify(errorCopy));
+    } else {
+      console.error(prefix, safeStringify(error));
+    }
   } catch (logError) {
     console.error(prefix, error?.message || error?.toString?.() || '[Unknown Error]');
   }

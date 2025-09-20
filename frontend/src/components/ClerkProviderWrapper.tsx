@@ -1,33 +1,20 @@
-import { ClerkProvider } from "@clerk/clerk-expo";
-import { tokenCache } from "@clerk/clerk-expo/token-cache";
-import React, { useEffect } from "react";
-import { clerkProviderOptions, disableClerkTelemetry } from "../utils/clerkUtils";
+import { ClerkProvider } from '@clerk/clerk-expo';
+import * as SecureStore from 'expo-secure-store';
+import { ReactNode } from 'react';
 
-interface ClerkProviderWrapperProps {
-  children: React.ReactNode;
-}
+const tokenCache = {
+  getToken: (key: string) => SecureStore.getItemAsync(key),
+  saveToken: (key: string, token: string) => SecureStore.setItemAsync(key, token),
+  removeToken: (key: string) => SecureStore.deleteItemAsync(key),
+};
 
-// Get Clerk publishable key from environment
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "pk_test_placeholder";
-
-const ClerkProviderWrapper: React.FC<ClerkProviderWrapperProps> = ({ children }) => {
-  useEffect(() => {
-    // Disable Clerk telemetry to prevent the error
-    disableClerkTelemetry();
-  }, []);
-
-  // Clerk provider options with telemetry disabled
-  const clerkOptions = {
-    publishableKey,
-    tokenCache,
-    ...clerkProviderOptions,
-  };
-
+export default function ClerkProviderWrapper({ children }: { children: ReactNode }) {
   return (
-    <ClerkProvider {...clerkOptions}>
+    <ClerkProvider
+      tokenCache={tokenCache}
+      publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+    >
       {children}
     </ClerkProvider>
   );
-};
-
-export default ClerkProviderWrapper;
+}
