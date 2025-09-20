@@ -33,11 +33,11 @@ export default function TabLayout() {
         <Tabs.Screen
           name="dashboard"
           options={{
-            title: 'Dashboard',
-            tabBarLabel: 'Dashboard',
-            headerTitle: 'Dashboard',
+            title: 'Home',
+            tabBarLabel: 'Home',
+            headerTitle: 'Home',
             tabBarIcon: ({ color }) => (
-              <MaterialCommunityIcons name="view-dashboard" size={24} color={color} />
+              <MaterialCommunityIcons name="home" size={24} color={color} />
             ),
           }}
         />
