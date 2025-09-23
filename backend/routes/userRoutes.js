@@ -10,17 +10,14 @@ router.use((req, res, next) => {
   next();
 });
 
-// All routes require authentication
-router.use(requireAuth);
+// Get current user (requires authentication)
+router.get('/me', requireAuth, getCurrentUser);
 
-// Get current user
-router.get('/me', getCurrentUser);
-
-// Create user (called when user first signs up)
+// Create user (does NOT require authentication - this is called when user first signs up)
 router.post('/', createUser);
 
-// Setup user profile (called after account setup)
-router.post('/setup', (req, res, next) => {
+// Setup user profile (requires authentication)
+router.post('/setup', requireAuth, (req, res, next) => {
   console.log('Received request to /setup endpoint');
   console.log('Request body:', req.body);
   next();

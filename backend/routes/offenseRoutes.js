@@ -9,14 +9,14 @@ const {
 } = require('../controllers/offenseController');
 const requireAuth = require('../middleware/auth');
 
-// All routes in this file require authentication
-router.use(requireAuth);
-
-// Get all offense types
+// Get all offense types (public - no authentication required)
 router.get('/', getOffenseTypes);
 
-// Get offense type by ID
+// Get offense type by ID (public - no authentication required)
 router.get('/:id', getOffenseTypeById);
+
+// Routes below require authentication
+router.use(requireAuth);
 
 // Create a new offense type (admin only)
 router.post('/', createOffenseType);

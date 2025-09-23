@@ -34,6 +34,18 @@
 - `POST /api/users/setup` - Setup user profile (requires authentication)
 - Other endpoints for fines, drivers, etc.
 
+## Frontend Integration
+
+The frontend connects to the backend through a comprehensive API service located in `frontend/src/utils/api.tsx`. This service provides typed functions for all backend endpoints.
+
+### Key Frontend API Functions
+
+- `userApi` - User management
+- `offenseApi` - Offense type management
+- `fineApi` - Fine issuance and management
+- `driverApi` - Driver-facing endpoints
+- `adminApi` - Administrative functions
+
 ## Troubleshooting
 
 If you encounter connection issues:
@@ -42,3 +54,12 @@ If you encounter connection issues:
 2. Verify the Clerk secret key is correct
 3. Check that the server is running on port 5000
 4. For Android emulator, use `http://10.0.2.2:5000` instead of localhost
+5. Make sure CORS is properly configured (already handled in app.js)
+
+## Testing API Connectivity
+
+You can test the API connectivity from the frontend by:
+
+1. Running the frontend application
+2. Navigating to the "API Test" page in the dashboard
+3. Or running the test script: `cd frontend && node test-api-connection.js`

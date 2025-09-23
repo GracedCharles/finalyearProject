@@ -2,13 +2,15 @@ import { useUser } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { fineApi, offenseApi } from '../../src/utils/api'
 
 // Define types
 interface OffenseType {
-  id: string
+  _id: string
   code: string
   description: string
   amount: number
+  category?: string
 }
 
 export default function IssueFineScreen() {
@@ -21,18 +23,23 @@ export default function IssueFineScreen() {
   const [offenseTypes, setOffenseTypes] = useState<OffenseType[]>([])
   const [driverName, setDriverName] = useState('')
 
-  // Mock function to fetch offense types (would be replaced with API call)
+  // Fetch offense types from API
   useEffect(() => {
-    // In a real app, this would fetch from your backend API
-    const mockOffenseTypes: OffenseType[] = [
-      { id: '1', code: 'SPD001', description: 'Speeding', amount: 100 },
-      { id: '2', code: 'RAN002', description: 'Running Red Light', amount: 150 },
-      { id: '3', code: 'PARK003', description: 'Illegal Parking', amount: 50 },
-    ]
-    setOffenseTypes(mockOffenseTypes)
+    const fetchOffenseTypes = async () => {
+      try {
+        const types = await offenseApi.getOffenseTypes();
+        setOffenseTypes(types);
+      } catch (error) {
+        console.error('Error fetching offense types:', error);
+        Alert.alert('Error', 'Failed to load offense types');
+      }
+    };
+
+    fetchOffenseTypes();
   }, [])
 
-  // Mock function to fetch driver name (would be replaced with API call)
+  // In a real app, you might have an API to fetch driver name
+  // For now, we'll keep the mock implementation
   const fetchDriverName = async (licenseNumber: string) => {
     // In a real app, this would call your backend API
     if (licenseNumber) {
@@ -56,14 +63,23 @@ export default function IssueFineScreen() {
     }
 
     try {
-      // In a real app, this would call your backend API to issue the fine
-      console.log('Issuing fine:', { driverLicense, vehicleReg, offenseType })
+      // Call the backend API to issue the fine
+      const result = await fineApi.issueFine({
+        driverLicenseNumber: driverLicense,
+        driverName: driverName || 'Unknown Driver',
+        vehicleRegistration: vehicleReg,
+        offenseTypeId: offenseType,
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 days from now
+      });
+      
+      console.log('Fine issued successfully:', result);
       Alert.alert('Success', 'Fine issued successfully!')
       
       // Reset form
       setDriverLicense('')
       setVehicleReg('')
       setOffenseType('')
+      setDriverName('')
     } catch (error) {
       console.error('Error issuing fine:', error)
       Alert.alert('Error', 'Failed to issue fine')
@@ -110,12 +126,12 @@ export default function IssueFineScreen() {
         <View className="border border-gray-300 rounded-lg">
           {offenseTypes.map((type) => (
             <TouchableOpacity
-              key={type.id}
-              className={`p-4 border-b border-gray-200 ${offenseType === type.id ? 'bg-blue-100' : ''}`}
-              onPress={() => setOffenseType(type.id)}
+              key={type._id}
+              className={`p-4 border-b border-gray-200 ${offenseType === type._id ? 'bg-blue-100' : ''}`}
+              onPress={() => setOffenseType(type._id)}
             >
               <Text className="font-medium">{type.description}</Text>
-              <Text className="text-gray-600">Code: {type.code} - Amount: ${type.amount}</Text>
+              <Text className="text-gray-600">Code: {type.code} - Amount: MWK{type.amount}</Text>
             </TouchableOpacity>
           ))}
         </View>

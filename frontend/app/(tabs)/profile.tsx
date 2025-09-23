@@ -1,21 +1,53 @@
 import { useClerk, useUser } from '@clerk/clerk-expo';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
+import { userApi } from '../../src/utils/api';
+
+interface UserProfile {
+  _id: string;
+  clerkId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  address?: string;
+  phoneNumber?: string;
+  createdAt: string;
+}
 
 export default function ProfileScreen() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  // Fetch user profile from backend
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const profile = await userApi.getCurrentUser();
+        setUserProfile(profile);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        Alert.alert('Error', 'Failed to load profile information');
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -62,7 +94,7 @@ export default function ProfileScreen() {
     </TouchableOpacity>
   );
 
-  if (!user) {
+  if (!user || loadingProfile) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
         <ActivityIndicator size="large" color="#3B82F6" />
@@ -78,16 +110,16 @@ export default function ProfileScreen() {
         {/* Profile Header Card */}
         <View className="bg-white border border-gray-300 rounded-2xl p-6 mb-6 shadow">
           <View className="items-center mb-4">
-            <View className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full items-center justify-center mb-3">
-              <Text className="text-black text-2xl font-bold">
-                {user.firstName}{user.lastName}
+            <View className="w-20 h-20 bg-blue-500 rounded-full items-center justify-center mb-3">
+              <Text className="text-white text-2xl font-bold">
+                {(userProfile?.firstName?.[0] || 'U') + (userProfile?.lastName?.[0] || 'U')}
               </Text>
             </View>
             <Text className="text-xl font-bold text-gray-900">
-              {user.firstName} {user.lastName}
+              {userProfile?.firstName} {userProfile?.lastName}
             </Text>
             <Text className="text-gray-600 text-base mt-1">
-              {user.primaryEmailAddress?.emailAddress}
+              {userProfile?.email}
             </Text>
           </View>
           
@@ -157,7 +189,7 @@ export default function ProfileScreen() {
             </View>
             <View className="flex-1">
               <Text className="text-gray-600 text-sm">Email Address</Text>
-              <Text className="text-gray-900 font-medium">{user.primaryEmailAddress?.emailAddress}</Text>
+              <Text className="text-gray-900 font-medium">{userProfile?.email}</Text>
             </View>
           </View>
           
@@ -168,7 +200,7 @@ export default function ProfileScreen() {
             <View className="flex-1">
               <Text className="text-gray-600 text-sm">Phone Number</Text>
               <Text className="text-gray-900 font-medium">
-                {user.primaryPhoneNumber?.phoneNumber || 'Not provided'}
+                {userProfile?.phoneNumber || 'Not provided'}
               </Text>
             </View>
           </View>
@@ -180,7 +212,7 @@ export default function ProfileScreen() {
             <View className="flex-1">
               <Text className="text-gray-600 text-sm">Member Since</Text>
               <Text className="text-gray-900 font-medium">
-                {new Date(user.createdAt || '').toLocaleDateString()}
+                {new Date(userProfile?.createdAt || user.createdAt || '').toLocaleDateString()}
               </Text>
             </View>
           </View>

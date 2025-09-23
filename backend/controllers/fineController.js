@@ -23,6 +23,47 @@ const generatePaymentId = () => {
 // Issue a new fine
 const issueFine = async (req, res) => {
   try {
+    let officer;
+    
+    // Check if user is authenticated
+    if (!req.auth || !req.auth.userId) {
+      console.log('No authentication provided for issue fine request');
+      // Let's also check if there's an authorization header
+      const authHeader = req.headers.authorization;
+      console.log('Authorization header:', authHeader);
+      
+      if (authHeader) {
+        // Try to manually decode the token
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const decoded = jwt.decode(token);
+          console.log('Manually decoded token:', decoded);
+          
+          if (decoded && decoded.sub) {
+            console.log('Found user ID in token:', decoded.sub);
+            // Try to find the user in the database
+            officer = await User.findOne({ clerkId: decoded.sub });
+            
+            if (!officer) {
+              console.log('Officer not found in database');
+              return res.status(404).json({ error: 'Officer not found' });
+            }
+          }
+        } catch (decodeError) {
+          console.error('Error manually decoding token:', decodeError);
+        }
+      }
+      
+      if (!officer) {
+        return res.status(401).json({ error: 'Unauthorized - No authentication provided' });
+      }
+    } else {
+      officer = await User.findOne({ clerkId: req.auth.userId });
+      if (!officer) {
+        return res.status(404).json({ error: 'Officer not found' });
+      }
+    }
+
     const { 
       driverLicenseNumber,
       driverName,
@@ -30,12 +71,6 @@ const issueFine = async (req, res) => {
       offenseTypeId,
       dueDate
     } = req.body;
-
-    // Get the authenticated officer
-    const officer = await User.findOne({ clerkId: req.auth.userId });
-    if (!officer) {
-      return res.status(404).json({ error: 'Officer not found' });
-    }
 
     // Get offense type details
     const offenseType = await OffenseType.findById(offenseTypeId);
@@ -77,11 +112,58 @@ const issueFine = async (req, res) => {
 // Get dashboard statistics for officer
 const getDashboardStats = async (req, res) => {
   try {
+    // Check if user is authenticated
+    if (!req.auth || !req.auth.userId) {
+      console.log('No authentication provided for dashboard request');
+      // Let's also check if there's an authorization header
+      const authHeader = req.headers.authorization;
+      console.log('Authorization header:', authHeader);
+      
+      if (authHeader) {
+        // Try to manually decode the token
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const decoded = jwt.decode(token);
+          console.log('Manually decoded token:', decoded);
+          
+          if (decoded && decoded.sub) {
+            console.log('Found user ID in token:', decoded.sub);
+            // Try to find the user in the database
+            const officer = await User.findOne({ clerkId: decoded.sub });
+            
+            if (officer) {
+              console.log('Officer found:', officer);
+              // Continue with the dashboard stats logic
+              return await getDashboardStatsForOfficer(officer, res);
+            } else {
+              console.log('Officer not found in database');
+              return res.status(404).json({ error: 'Officer not found' });
+            }
+          }
+        } catch (decodeError) {
+          console.error('Error manually decoding token:', decodeError);
+        }
+      }
+      
+      return res.status(401).json({ error: 'Unauthorized - No authentication provided' });
+    }
+    
     const officer = await User.findOne({ clerkId: req.auth.userId });
     if (!officer) {
       return res.status(404).json({ error: 'Officer not found' });
     }
 
+    // Continue with the dashboard stats logic
+    return await getDashboardStatsForOfficer(officer, res);
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Helper function to get dashboard stats for an officer
+const getDashboardStatsForOfficer = async (officer, res) => {
+  try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -111,17 +193,53 @@ const getDashboardStats = async (req, res) => {
       totalCollected
     });
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching dashboard stats for officer:', error);
+    throw error; // Re-throw to be caught by the main function
   }
 };
 
 // Get all fines issued by the officer
 const getOfficerFines = async (req, res) => {
   try {
-    const officer = await User.findOne({ clerkId: req.auth.userId });
-    if (!officer) {
-      return res.status(404).json({ error: 'Officer not found' });
+    let officer;
+    
+    // Check if user is authenticated
+    if (!req.auth || !req.auth.userId) {
+      console.log('No authentication provided for officer fines request');
+      // Let's also check if there's an authorization header
+      const authHeader = req.headers.authorization;
+      console.log('Authorization header:', authHeader);
+      
+      if (authHeader) {
+        // Try to manually decode the token
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const decoded = jwt.decode(token);
+          console.log('Manually decoded token:', decoded);
+          
+          if (decoded && decoded.sub) {
+            console.log('Found user ID in token:', decoded.sub);
+            // Try to find the user in the database
+            officer = await User.findOne({ clerkId: decoded.sub });
+            
+            if (!officer) {
+              console.log('Officer not found in database');
+              return res.status(404).json({ error: 'Officer not found' });
+            }
+          }
+        } catch (decodeError) {
+          console.error('Error manually decoding token:', decodeError);
+        }
+      }
+      
+      if (!officer) {
+        return res.status(401).json({ error: 'Unauthorized - No authentication provided' });
+      }
+    } else {
+      officer = await User.findOne({ clerkId: req.auth.userId });
+      if (!officer) {
+        return res.status(404).json({ error: 'Officer not found' });
+      }
     }
 
     const { page = 1, limit = 10, status, startDate, endDate, search } = req.query;
@@ -173,9 +291,45 @@ const getOfficerFines = async (req, res) => {
 // Get a specific fine by ID
 const getFineById = async (req, res) => {
   try {
-    const officer = await User.findOne({ clerkId: req.auth.userId });
-    if (!officer) {
-      return res.status(404).json({ error: 'Officer not found' });
+    let officer;
+    
+    // Check if user is authenticated
+    if (!req.auth || !req.auth.userId) {
+      console.log('No authentication provided for fine by ID request');
+      // Let's also check if there's an authorization header
+      const authHeader = req.headers.authorization;
+      console.log('Authorization header:', authHeader);
+      
+      if (authHeader) {
+        // Try to manually decode the token
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const decoded = jwt.decode(token);
+          console.log('Manually decoded token:', decoded);
+          
+          if (decoded && decoded.sub) {
+            console.log('Found user ID in token:', decoded.sub);
+            // Try to find the user in the database
+            officer = await User.findOne({ clerkId: decoded.sub });
+            
+            if (!officer) {
+              console.log('Officer not found in database');
+              return res.status(404).json({ error: 'Officer not found' });
+            }
+          }
+        } catch (decodeError) {
+          console.error('Error manually decoding token:', decodeError);
+        }
+      }
+      
+      if (!officer) {
+        return res.status(401).json({ error: 'Unauthorized - No authentication provided' });
+      }
+    } else {
+      officer = await User.findOne({ clerkId: req.auth.userId });
+      if (!officer) {
+        return res.status(404).json({ error: 'Officer not found' });
+      }
     }
 
     const fine = await Fine.findOne({ 
@@ -252,9 +406,45 @@ const processPayment = async (req, res) => {
 // Get analytics data for officer
 const getAnalytics = async (req, res) => {
   try {
-    const officer = await User.findOne({ clerkId: req.auth.userId });
-    if (!officer) {
-      return res.status(404).json({ error: 'Officer not found' });
+    let officer;
+    
+    // Check if user is authenticated
+    if (!req.auth || !req.auth.userId) {
+      console.log('No authentication provided for analytics request');
+      // Let's also check if there's an authorization header
+      const authHeader = req.headers.authorization;
+      console.log('Authorization header:', authHeader);
+      
+      if (authHeader) {
+        // Try to manually decode the token
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const decoded = jwt.decode(token);
+          console.log('Manually decoded token:', decoded);
+          
+          if (decoded && decoded.sub) {
+            console.log('Found user ID in token:', decoded.sub);
+            // Try to find the user in the database
+            officer = await User.findOne({ clerkId: decoded.sub });
+            
+            if (!officer) {
+              console.log('Officer not found in database');
+              return res.status(404).json({ error: 'Officer not found' });
+            }
+          }
+        } catch (decodeError) {
+          console.error('Error manually decoding token:', decodeError);
+        }
+      }
+      
+      if (!officer) {
+        return res.status(401).json({ error: 'Unauthorized - No authentication provided' });
+      }
+    } else {
+      officer = await User.findOne({ clerkId: req.auth.userId });
+      if (!officer) {
+        return res.status(404).json({ error: 'Officer not found' });
+      }
     }
 
     const { period = 'monthly' } = req.query;

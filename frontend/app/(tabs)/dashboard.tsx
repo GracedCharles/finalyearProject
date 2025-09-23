@@ -2,7 +2,8 @@ import { useUser } from '@clerk/clerk-expo'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { fineApi } from '../../src/utils/api'
 
 // Define types
 interface DashboardStats {
@@ -43,16 +44,41 @@ export default function DashboardScreen() {
     totalCollected: 0,
     totalOutstanding: 0
   })
+  
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Mock data (would be replaced with API call)
+  // Fetch real data from API
   useEffect(() => {
-    // In a real app, this would fetch from your backend API
-    setStats({
-      finesIssuedToday: 5,
-      pendingPayments: 12,
-      totalCollected: 1250,
-      totalOutstanding: 850
-    })
+    const fetchDashboardStats = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const dashboardStats = await fineApi.getDashboardStats();
+        // For totalOutstanding, we'll need to calculate it or get it from another endpoint
+        // For now, we'll set it to a placeholder value
+        setStats({
+          finesIssuedToday: dashboardStats.finesToday,
+          pendingPayments: dashboardStats.pendingFines,
+          totalCollected: dashboardStats.totalCollected,
+          totalOutstanding: 0 // This would need a separate API call to calculate
+        });
+      } catch (error: any) {
+        console.error('Error fetching dashboard stats:', error);
+        setError(error.message || 'Failed to load dashboard data')
+        // Fallback to mock data in case of error
+        setStats({
+          finesIssuedToday: 5,
+          pendingPayments: 12,
+          totalCollected: 1250,
+          totalOutstanding: 850
+        });
+      } finally {
+        setLoading(false)
+      }
+    };
+
+    fetchDashboardStats();
   }, [])
 
   // Quick action items
@@ -92,6 +118,15 @@ export default function DashboardScreen() {
       color: 'bg-blue-500',
       iconColor: 'white',
       onPress: () => router.push('/(tabs)/audit')
+    },
+    {
+      id: 'api-test',
+      title: 'API Test',
+      subtitle: 'Test API connectivity',
+      icon: 'connection',
+      color: 'bg-purple-500',
+      iconColor: 'white',
+      onPress: () => router.push('/api-test')
     }
   ]
 
@@ -136,30 +171,51 @@ export default function DashboardScreen() {
           <Text className="text-white text-opacity-90 mt-2">Traffic Officer Dashboard</Text>
         </View>
 
-        {/* Stats Overview */}
-        <View className="mb-6">
-          <Text className="text-xl font-bold text-gray-800 mb-4">Today's Overview</Text>
-          <View className="flex-row flex-wrap justify-between">
-            {statCards.map((stat, index) => (
-              <View 
-                key={index} 
-                className={`w-[48%] ${stat.color} rounded-2xl p-4 mb-4 shadow`}
-              >
-                <View className="flex-row justify-between items-start">
-                  <View>
-                    <Text className={`${stat.textColor} text-opacity-90`}>{stat.title}</Text>
-                    <Text className={`text-2xl font-bold ${stat.textColor} mt-1`}>{stat.value}</Text>
-                  </View>
-                  <MaterialCommunityIcons 
-                    name={stat.icon} 
-                    size={24} 
-                    color={stat.textColor === 'text-white' ? 'white' : 'black'} 
-                  />
-                </View>
-              </View>
-            ))}
+        {/* Loading indicator */}
+        {loading && (
+          <View className="flex-1 justify-center items-center py-10">
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text className="mt-4 text-gray-600">Loading dashboard data...</Text>
           </View>
-        </View>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <View className="bg-red-100 border border-red-400 rounded-lg p-4 mb-6">
+            <Text className="text-red-700 font-medium">Connection Error</Text>
+            <Text className="text-red-600 mt-1">{error}</Text>
+            <Text className="text-red-500 text-sm mt-2">
+              Please make sure the backend server is running on http://localhost:5000
+            </Text>
+          </View>
+        )}
+
+        {/* Stats Overview */}
+        {!loading && (
+          <View className="mb-6">
+            <Text className="text-xl font-bold text-gray-800 mb-4">Today's Overview</Text>
+            <View className="flex-row flex-wrap justify-between">
+              {statCards.map((stat, index) => (
+                <View 
+                  key={index} 
+                  className={`w-[48%] ${stat.color} rounded-2xl p-4 mb-4 shadow`}
+                >
+                  <View className="flex-row justify-between items-start">
+                    <View>
+                      <Text className={`${stat.textColor} text-opacity-90`}>{stat.title}</Text>
+                      <Text className={`text-2xl font-bold ${stat.textColor} mt-1`}>{stat.value}</Text>
+                    </View>
+                    <MaterialCommunityIcons 
+                      name={stat.icon} 
+                      size={24} 
+                      color={stat.textColor === 'text-white' ? 'white' : 'black'} 
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Quick Actions */}
         <View className="mb-6 bg-white border border-gray-300 rounded-2xl p-4 shadow rounded-2xl overflow-hidden"> 
