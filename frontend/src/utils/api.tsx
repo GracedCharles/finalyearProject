@@ -199,7 +199,7 @@ export const offenseApi = {
     apiCall('/offenses', { method: 'GET' }),
     
   getOffenseTypeById: (id: string): Promise<OffenseType> => 
-    apiCall(`/offenses/${id}`, { method: 'GET' }),
+    apiCall(`/offenses/${encodeURIComponent(id)}`, { method: 'GET' }),
     
   createOffenseType: (offenseData: Omit<OffenseType, '_id' | 'createdAt' | 'updatedAt'>): Promise<OffenseType> => 
     authenticatedApiCall('/offenses', {
@@ -208,13 +208,13 @@ export const offenseApi = {
     }),
     
   updateOffenseType: (id: string, offenseData: Partial<OffenseType>): Promise<OffenseType> => 
-    authenticatedApiCall(`/offenses/${id}`, {
+    authenticatedApiCall(`/offenses/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(offenseData)
     }),
     
   deleteOffenseType: (id: string): Promise<{ message: string }> => 
-    authenticatedApiCall(`/offenses/${id}`, { method: 'DELETE' })
+    authenticatedApiCall(`/offenses/${encodeURIComponent(id)}`, { method: 'DELETE' })
 };
 
 // Fine API functions (require authentication)
@@ -252,7 +252,7 @@ export const fineApi = {
   },
     
   getFineById: (id: string): Promise<Fine> => 
-    authenticatedApiCall(`/fines/${id}`, { method: 'GET' }),
+    authenticatedApiCall(`/fines/${encodeURIComponent(id)}`, { method: 'GET' }),
     
   processPayment: (paymentData: {
     fineId: string;
@@ -269,7 +269,7 @@ export const fineApi = {
 // Driver API functions (public endpoints - no authentication required)
 export const driverApi = {
   getFineByFineId: (fineId: string): Promise<Fine> => 
-    apiCall(`/drivers/fines/${fineId}`, { method: 'GET' }),
+    apiCall(`/drivers/fines/${encodeURIComponent(fineId)}`, { method: 'GET' }),
     
   searchFines: (params: {
     driverLicenseNumber: string;
@@ -285,7 +285,7 @@ export const driverApi = {
     limit?: number;
   }): Promise<PaginatedResponse<Payment>> => {
     const queryString = params ? `?${new URLSearchParams(params as any).toString()}` : '';
-    return apiCall(`/drivers/payments/${driverLicenseNumber}${queryString}`, { method: 'GET' });
+    return apiCall(`/drivers/payments/${encodeURIComponent(driverLicenseNumber)}${queryString}`, { method: 'GET' });
   },
     
   processPayment: (paymentData: {
@@ -363,10 +363,10 @@ export const adminApi = {
     }),
   
   removeUser: (id: string): Promise<{ message: string }> => 
-    authenticatedApiCall(`/admin/users/${id}`, { method: 'DELETE' }),
+    authenticatedApiCall(`/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   
   resetPassword: (id: string): Promise<{ message: string }> => 
-    authenticatedApiCall(`/admin/users/${id}/reset-password`, { method: 'POST' })
+    authenticatedApiCall(`/admin/users/${encodeURIComponent(id)}/reset-password`, { method: 'POST' })
 };
 
 export default {

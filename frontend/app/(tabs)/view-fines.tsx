@@ -28,7 +28,11 @@ export default function ViewFinesScreen() {
       try {
         setLoading(true)
         const response = await fineApi.getOfficerFines()
-        setFines(response.data)
+        // Fix: Access the fines array from the response object
+        // The backend returns { fines: [], totalPages, currentPage } but the type says { data: [], totalPages, currentPage }
+        // We need to handle this discrepancy
+        const finesArray = (response as any).fines || response.data || []
+        setFines(finesArray)
       } catch (error) {
         console.error('Error fetching fines:', error)
         Alert.alert('Error', 'Failed to load fines')
@@ -40,10 +44,11 @@ export default function ViewFinesScreen() {
     fetchFines()
   }, [])
 
-  const filteredFines = fines.filter(fine => {
+  // Fix: Add a check to ensure fines is an array before filtering
+  const filteredFines = Array.isArray(fines) ? fines.filter(fine => {
     if (filter === 'all') return true
     return fine.status === filter
-  })
+  }) : []
 
   const handleViewDetails = (fineId: string) => {
     Alert.alert('Fine Details', `Viewing details for fine ${fineId}`)
