@@ -4,11 +4,15 @@ const {
   getFineByFineId,
   getPaymentHistory,
   searchFines,
-  processPayment
+  processPayment,
+  getDriverDashboardStats
 } = require('../controllers/driverController');
 
 // These routes don't require authentication as they are for drivers looking up fines
 // In a production environment, you might want to add rate limiting
+
+// Get driver dashboard statistics
+router.get('/dashboard', getDriverDashboardStats);
 
 // Get a fine by fine ID or QR code
 router.get('/fines/:fineId', getFineByFineId);

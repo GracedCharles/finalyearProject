@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 const OffenseType = require('./models/OffenseType');
+const User = require('./models/User');
 
 // Check if MONGODB_URI is defined
 if (!process.env.MONGODB_URI) {
@@ -103,6 +104,33 @@ db.once('open', async () => {
     // Insert offense types
     await OffenseType.insertMany(offenseTypes);
     console.log('Seeded offense types successfully');
+
+    // Check if admin user exists, if not create one
+    // Note: This is a placeholder admin user. In production, you would manually 
+    // create admin users or have a more sophisticated admin creation process.
+    const adminUser = await User.findOne({ role: 'admin' });
+    if (!adminUser) {
+      const newAdmin = new User({
+        clerkId: 'user_32m5DkVTrjmf4CuK3tappLcJmYl', // This matches the Clerk user ID from your logs
+        email: 'isaacmonawe6@gmail.com', // This matches the email from your logs
+        firstName: 'Isaac',
+        lastName: 'Monawe',
+        role: 'admin', // Set as admin
+        isActive: true
+      });
+      
+      await newAdmin.save();
+      console.log('Created default admin user with Clerk ID:', newAdmin.clerkId);
+    } else {
+      console.log('Admin user already exists with email:', adminUser.email);
+      
+      // Update existing user to ensure they have admin role
+      if (adminUser.role !== 'admin') {
+        adminUser.role = 'admin';
+        await adminUser.save();
+        console.log('Updated user to admin role');
+      }
+    }
 
     // Close connection
     mongoose.connection.close();

@@ -92,6 +92,13 @@ export interface DashboardStats {
   totalCollected: number;
 }
 
+export interface DriverDashboardStats {
+  activeFines: number;
+  overdueFines: number;
+  totalPaid: number;
+  totalOutstanding: number;
+}
+
 export interface AnalyticsData {
   finesOverTime: Array<{
     _id: string;
@@ -268,6 +275,11 @@ export const fineApi = {
 
 // Driver API functions (public endpoints - no authentication required)
 export const driverApi = {
+  getDashboardStats: (driverLicenseNumber?: string): Promise<DriverDashboardStats> => {
+    const queryString = driverLicenseNumber ? `?driverLicenseNumber=${encodeURIComponent(driverLicenseNumber)}` : '';
+    return apiCall(`/drivers/dashboard${queryString}`, { method: 'GET' });
+  },
+    
   getFineByFineId: (fineId: string): Promise<Fine> => 
     apiCall(`/drivers/fines/${encodeURIComponent(fineId)}`, { method: 'GET' }),
     

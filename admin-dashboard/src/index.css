@@ -4,48 +4,49 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222 20% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 20% 10%;
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 20% 10%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 20% 90%;
-    --secondary-foreground: 222 20% 10%;
-    --muted: 210 20% 85%;
-    --muted-foreground: 215 16% 40%;
-    --accent: 210 20% 90%;
-    --accent-foreground: 222 20% 10%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 210 20% 90%;
-    --input: 210 20% 90%;
-    --ring: 217 91% 60%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --ring: 215 20.2% 65.1%;
     --radius: 0.5rem;
   }
-
+  
   .dark {
-    --background: 222 20% 10%;
-    --foreground: 210 20% 98%;
-    --card: 222 20% 15%;
-    --card-foreground: 210 20% 98%;
-    --popover: 222 20% 15%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 20% 20%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 210 20% 25%;
-    --muted-foreground: 210 20% 70%;
-    --accent: 210 20% 20%;
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 210 20% 20%;
-    --input: 210 20% 20%;
-    --ring: 217 91% 60%;
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215.4 16.3% 56.9%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 210 40% 98%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 215 20.2% 65.1%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 1.2%;
+    --secondary: 222.2 47.4% 11.2%;
+    --secondary-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --ring: 216 34% 17%;
+    --radius: 0.5rem;
   }
 }
 
@@ -56,102 +57,5 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-  }
-}
-
-@layer components {
-  /* Card styles */
-  .card {
-    @apply bg-card rounded-xl border shadow-sm transition-all duration-200;
-  }
-  
-  .card:hover {
-    @apply shadow-md;
-  }
-  
-  /* Button styles */
-  .btn {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background;
-  }
-  
-  .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90;
-  }
-  
-  .btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
-  }
-  
-  .btn-outline {
-    @apply border border-input hover:bg-accent hover:text-accent-foreground;
-  }
-  
-  .btn-sm {
-    @apply h-9 px-3 rounded-md;
-  }
-  
-  .btn-lg {
-    @apply h-11 px-8 rounded-md;
-  }
-  
-  /* Form elements */
-  .form-input {
-    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-  
-  .form-select {
-    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-  
-  /* Badges */
-  .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
-  }
-  
-  .badge-success {
-    @apply bg-success/10 text-success;
-  }
-  
-  .badge-warning {
-    @apply bg-warning/10 text-warning;
-  }
-  
-  .badge-danger {
-    @apply bg-danger/10 text-danger;
-  }
-  
-  .badge-neutral {
-    @apply bg-muted text-muted-foreground;
-  }
-  
-  /* Sidebar items */
-  .sidebar-item {
-    @apply flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors;
-  }
-  
-  .sidebar-item:hover {
-    @apply bg-accent text-accent-foreground;
-  }
-  
-  .sidebar-item.active {
-    @apply bg-primary text-primary-foreground;
-  }
-  
-  /* Table styles */
-  .table-header {
-    @apply bg-muted/50;
-  }
-  
-  .table-row:hover {
-    @apply bg-muted/30;
-  }
-  
-  /* Activity items */
-  .activity-item {
-    @apply flex items-start space-x-3 p-3 rounded-lg hover:bg-muted/30 transition-colors;
-  }
-  
-  .activity-icon {
-    @apply flex-shrink-0 pt-0.5;
   }
 }

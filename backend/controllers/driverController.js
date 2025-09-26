@@ -1,5 +1,6 @@
 const Fine = require('../models/Fine');
 const Payment = require('../models/Payment');
+const User = require('../models/User');
 
 // Get a fine by fine ID
 const getFineByFineId = async (req, res) => {
@@ -134,9 +135,60 @@ const processPayment = async (req, res) => {
   }
 };
 
+// Get driver dashboard statistics
+const getDriverDashboardStats = async (req, res) => {
+  try {
+    // For drivers, we'll get stats based on their license number
+    // In a real implementation, you would get this from the authenticated user's profile
+    // For now, we'll use a placeholder - in a real app, you would get this from the user's profile
+    const driverLicenseNumber = req.query.driverLicenseNumber || 'DL001'; // Placeholder
+    
+    // Active fines (pending)
+    const activeFines = await Fine.countDocuments({
+      driverLicenseNumber,
+      status: 'PENDING'
+    });
+
+    // Overdue fines
+    const now = new Date();
+    const overdueFines = await Fine.countDocuments({
+      driverLicenseNumber,
+      status: 'PENDING',
+      dueDate: { $lt: now }
+    });
+
+    // Total paid amount
+    const paidFines = await Fine.find({
+      driverLicenseNumber,
+      status: 'PAID'
+    }).select('fineAmount');
+
+    const totalPaid = paidFines.reduce((sum, fine) => sum + fine.fineAmount, 0);
+
+    // Total outstanding (pending fines)
+    const pendingFines = await Fine.find({
+      driverLicenseNumber,
+      status: 'PENDING'
+    }).select('fineAmount');
+
+    const totalOutstanding = pendingFines.reduce((sum, fine) => sum + fine.fineAmount, 0);
+
+    res.json({
+      activeFines,
+      overdueFines,
+      totalPaid,
+      totalOutstanding
+    });
+  } catch (error) {
+    console.error('Error fetching driver dashboard stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   getFineByFineId,
   searchFines,
   getPaymentHistory,
-  processPayment
+  processPayment,
+  getDriverDashboardStats
 };

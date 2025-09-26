@@ -22,8 +22,7 @@ const authMiddleware = (req, res, next) => {
 const clerkAuth = ClerkExpressRequireAuth({
   onError: (err, req, res, next) => {
     console.error('Clerk authentication error:', err);
-    // Continue to next middleware even if auth fails for debugging
-    next();
+    return res.status(401).json({ error: 'Unauthenticated' });
   },
   authorizedParties: [
     'http://localhost:5000',
@@ -34,9 +33,11 @@ const clerkAuth = ClerkExpressRequireAuth({
     'http://192.168.43.72:8081', // Add your computer's IP for Expo
     'http://localhost:5001',
     'http://10.0.2.2:5001',
-    'http://192.168.43.72:5001'  // Add your computer's IP for other ports
+    'http://192.168.43.72:5001',  // Add your computer's IP for other ports
+    'http://localhost:5173',  // Admin dashboard
+    'http://127.0.0.1:5173'   // Admin dashboard
   ],
-  strict: false // Allow requests without authentication for debugging
+  strict: true // Require authentication for all protected routes
 });
 
 module.exports = (req, res, next) => {

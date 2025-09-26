@@ -1,8 +1,8 @@
 import { useClerk } from '@clerk/clerk-expo'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useRouter } from 'expo-router'
 import React from 'react'
-import { Text, TouchableOpacity, View } from 'react-native'
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
+import { TouchableOpacity, View } from 'react-native'
 
 export const SignOutButton = () => {
   // Use `useClerk()` to access the `signOut()` function
