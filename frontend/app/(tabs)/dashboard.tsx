@@ -63,24 +63,22 @@ export default function DashboardScreen() {
         
         // Only fetch officer dashboard stats if user is an officer or admin
         if (currentUser.role !== 'clerk') {
-          const dashboardStats = await fineApi.getDashboardStats();
-          setStats({
-            finesIssuedToday: dashboardStats.finesToday,
-            pendingPayments: dashboardStats.pendingFines,
-            totalCollected: dashboardStats.totalCollected,
-            totalOutstanding: 0 // This would need a separate API call to calculate
-          });
+          try {
+            const dashboardStats = await fineApi.getDashboardStats();
+            setStats({
+              finesIssuedToday: dashboardStats.finesToday,
+              pendingPayments: dashboardStats.pendingFines,
+              totalCollected: dashboardStats.totalCollected,
+              totalOutstanding: 0 // This would need a separate API call to calculate
+            });
+          } catch (dashboardError: any) {
+            console.error('Error fetching dashboard stats:', dashboardError);
+            setError(dashboardError.message || 'Failed to load dashboard statistics');
+          }
         }
       } catch (error: any) {
         console.error('Error fetching user data:', error);
-        setError(error.message || 'Failed to load dashboard data')
-        // Fallback to mock data in case of error
-        setStats({
-          finesIssuedToday: 5,
-          pendingPayments: 12,
-          totalCollected: 1250,
-          totalOutstanding: 850
-        });
+        setError(error.message || 'Failed to load dashboard data');
       } finally {
         setLoading(false)
       }

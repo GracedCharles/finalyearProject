@@ -54,6 +54,14 @@ export default function DriverDashboardScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // In a real implementation, the driver license number would be stored in the user's profile
+  // For this demo, we'll use a placeholder that simulates getting it from the user's profile
+  const getDriverLicenseNumber = () => {
+    // This would normally come from the user's profile in a real app
+    // For demo purposes, we'll use a placeholder
+    return 'DL001';
+  }
+
   // Fetch driver dashboard data
   useEffect(() => {
     const fetchDriverData = async () => {
@@ -61,49 +69,47 @@ export default function DriverDashboardScreen() {
         setLoading(true)
         setError(null)
         
-        // Fetch driver dashboard stats
-        const dashboardStats: DriverDashboardStats = await driverApi.getDashboardStats();
-        setStats(dashboardStats)
+        const driverLicenseNumber = getDriverLicenseNumber();
         
-        // For demo purposes, we'll use mock data for recent fines
-        // In a real implementation, you would fetch this data from your backend
-        setTimeout(() => {
-          setRecentFines([
-            {
-              _id: '1',
-              fineId: 'FN-2023-001',
-              driverName: 'John Doe',
-              vehicleRegistration: 'ABC123',
-              offenseDetails: 'Speeding',
-              fineAmount: 2500,
-              status: 'PENDING',
-              issuedAt: new Date().toISOString(),
-              dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-              offenseTypeId: {
-                description: 'Speeding'
-              }
-            },
-            {
-              _id: '2',
-              fineId: 'FN-2023-002',
-              driverName: 'John Doe',
-              vehicleRegistration: 'ABC123',
-              offenseDetails: 'Parking Violation',
-              fineAmount: 1500,
-              status: 'PAID',
-              issuedAt: new Date().toISOString(),
-              dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-              offenseTypeId: {
-                description: 'Parking Violation'
-              }
-            }
-          ])
+        // Fetch driver dashboard stats
+        try {
+          const dashboardStats: DriverDashboardStats = await driverApi.getDashboardStats(driverLicenseNumber);
+          setStats(dashboardStats)
+        } catch (statsError: any) {
+          console.error('Error fetching driver dashboard stats:', statsError)
+          setError(statsError.message || 'Failed to load dashboard statistics')
+        }
+        
+        // Fetch recent fines
+        try {
+          const response = await driverApi.searchFines({
+            driverLicenseNumber,
+            page: 1,
+            limit: 5
+          });
           
-          setLoading(false)
-        }, 1000)
+          // Handle the actual response structure from the backend
+          // The backend returns { fines: [], totalPages, currentPage } 
+          // but the frontend API type expects { data: [], totalPages, currentPage }
+          const finesArray = (response as any).fines || response.data || []
+          if (Array.isArray(finesArray)) {
+            setRecentFines(finesArray)
+          } else {
+            setRecentFines([])
+          }
+        } catch (finesError: any) {
+          console.error('Error fetching recent fines:', finesError)
+          setRecentFines([]) // Set to empty array on error
+          if (!error) { // Only set error if not already set
+            setError(finesError.message || 'Failed to load recent fines')
+          }
+        }
       } catch (error: any) {
         console.error('Error fetching driver data:', error)
         setError(error.message || 'Failed to load dashboard data')
+        // Set fines to empty array on general error
+        setRecentFines([])
+      } finally {
         setLoading(false)
       }
     }
@@ -280,7 +286,7 @@ export default function DriverDashboardScreen() {
             </TouchableOpacity>
           </View>
           
-          {recentFines.length > 0 ? (
+          {recentFines && recentFines.length > 0 ? (
             <View className="space-y-4">
               {recentFines.map((fine) => (
                 <View 

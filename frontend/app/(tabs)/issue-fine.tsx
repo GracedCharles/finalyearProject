@@ -22,15 +22,19 @@ export default function IssueFineScreen() {
   const [offenseType, setOffenseType] = useState('')
   const [offenseTypes, setOffenseTypes] = useState<OffenseType[]>([])
   const [driverName, setDriverName] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Fetch offense types from API
   useEffect(() => {
     const fetchOffenseTypes = async () => {
       try {
+        setError(null)
         const types = await offenseApi.getOffenseTypes();
         setOffenseTypes(types);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching offense types:', error);
+        setError(error.message || 'Failed to load offense types');
         Alert.alert('Error', 'Failed to load offense types');
       }
     };
@@ -63,6 +67,9 @@ export default function IssueFineScreen() {
     }
 
     try {
+      setLoading(true)
+      setError(null)
+      
       // Call the backend API to issue the fine
       const result = await fineApi.issueFine({
         driverLicenseNumber: driverLicense,
@@ -80,15 +87,26 @@ export default function IssueFineScreen() {
       setVehicleReg('')
       setOffenseType('')
       setDriverName('')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error issuing fine:', error)
-      Alert.alert('Error', 'Failed to issue fine')
+      setError(error.message || 'Failed to issue fine')
+      Alert.alert('Error', error.message || 'Failed to issue fine')
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
     <ScrollView className="flex-1 bg-white p-6">
       <Text className="text-2xl font-bold mb-6">Issue Traffic Fine</Text>
+      
+      {/* Error message */}
+      {error && (
+        <View className="bg-red-100 border border-red-400 rounded-lg p-4 mb-4">
+          <Text className="text-red-700 font-medium">Error</Text>
+          <Text className="text-red-600 mt-1">{error}</Text>
+        </View>
+      )}
       
       <View className="mb-6">
         <Text className="text-lg font-semibold mb-2">Officer Information</Text>
@@ -138,10 +156,13 @@ export default function IssueFineScreen() {
       </View>
       
       <TouchableOpacity 
-        className="bg-blue-500 p-4 rounded-lg"
+        className={`bg-blue-500 p-4 rounded-lg ${loading ? 'opacity-50' : ''}`}
         onPress={handleIssueFine}
+        disabled={loading}
       >
-        <Text className="text-white text-center font-bold">Issue Fine</Text>
+        <Text className="text-white text-center font-bold">
+          {loading ? 'Issuing Fine...' : 'Issue Fine'}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   )
