@@ -1,8 +1,10 @@
 import { useUser } from '@clerk/clerk-expo'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
-import React, { useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native'
-import { driverApi, DriverDashboardStats } from '../../src/utils/api'
+import { useRouter } from 'expo-router'
+import React, { useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import { driverApi, DriverDashboardStats, User, userApi } from '../../src/utils/api'
+import { realtimeService } from '../../src/utils/realtime'
 
 // Define types
 interface Fine {
@@ -43,6 +45,7 @@ interface QuickAction {
 
 export default function DriverDashboardScreen() {
   const { user } = useUser()
+  const router = useRouter()
   const [stats, setStats] = useState<DriverDashboardStats>({
     activeFines: 0,
     totalPaid: 0,
@@ -53,45 +56,71 @@ export default function DriverDashboardScreen() {
   const [recentFines, setRecentFines] = useState<Fine[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userProfile, setUserProfile] = useState<User | null>(null)
+  const lastUpdateRef = useRef<number>(0)
 
-  // In a real implementation, the driver license number would be stored in the user's profile
-  // For this demo, we'll use a placeholder that simulates getting it from the user's profile
-  const getDriverLicenseNumber = () => {
-    // This would normally come from the user's profile in a real app
-    // For demo purposes, we'll use a placeholder
-    return 'DL001';
-  }
-
-  // Fetch driver dashboard data
+  // Fetch user profile to get driver license number
   useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const profile = await userApi.getCurrentUser();
+        setUserProfile(profile);
+        return profile.driverLicenseNumber;
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        setError('Failed to load user profile. Please check your network connection.');
+        return null;
+      }
+    };
+
     const fetchDriverData = async () => {
       try {
         setLoading(true)
         setError(null)
         
-        const driverLicenseNumber = getDriverLicenseNumber();
+        // Fetch user profile first to get driver license number
+        const profile = await userApi.getCurrentUser();
+        setUserProfile(profile);
+        
+        const driverLicenseNumber = profile.driverLicenseNumber;
+        
+        if (!driverLicenseNumber) {
+          setError('Driver license number not found in your profile. Please update your profile.');
+          setLoading(false);
+          return;
+        }
+        
+        // Connect to real-time service
+        realtimeService.connect()
         
         // Fetch driver dashboard stats
         try {
           const dashboardStats: DriverDashboardStats = await driverApi.getDashboardStats(driverLicenseNumber);
-          setStats(dashboardStats)
+          setStats({
+            activeFines: dashboardStats.activeFines || 0,
+            totalPaid: dashboardStats.totalPaid || 0,
+            overdueFines: dashboardStats.overdueFines || 0,
+            totalOutstanding: dashboardStats.totalOutstanding || 0
+          })
         } catch (statsError: any) {
           console.error('Error fetching driver dashboard stats:', statsError)
-          setError(statsError.message || 'Failed to load dashboard statistics')
+          setError(statsError.message || 'Failed to load dashboard statistics. Please check your network connection.')
         }
         
         // Fetch recent fines
         try {
-          const response = await driverApi.searchFines({
+          const response: any = await driverApi.searchFines({
             driverLicenseNumber,
             page: 1,
             limit: 5
           });
           
+          console.log('Driver dashboard fines API response:', response);
+          
           // Handle the actual response structure from the backend
           // The backend returns { fines: [], totalPages, currentPage } 
-          // but the frontend API type expects { data: [], totalPages, currentPage }
-          const finesArray = (response as any).fines || response.data || []
+          const finesArray = response.fines || response.data || []
+          
           if (Array.isArray(finesArray)) {
             setRecentFines(finesArray)
           } else {
@@ -101,12 +130,12 @@ export default function DriverDashboardScreen() {
           console.error('Error fetching recent fines:', finesError)
           setRecentFines([]) // Set to empty array on error
           if (!error) { // Only set error if not already set
-            setError(finesError.message || 'Failed to load recent fines')
+            setError(finesError.message || 'Failed to load recent fines. Please check your network connection.')
           }
         }
       } catch (error: any) {
         console.error('Error fetching driver data:', error)
-        setError(error.message || 'Failed to load dashboard data')
+        setError(error.message || 'Failed to load dashboard data. Please check your network connection and make sure the backend server is running.')
         // Set fines to empty array on general error
         setRecentFines([])
       } finally {
@@ -115,6 +144,25 @@ export default function DriverDashboardScreen() {
     }
 
     fetchDriverData()
+    
+    // Set up real-time listeners
+    const handlePaymentProcessed = (data: any) => {
+      console.log('Real-time payment processed in driver dashboard:', data);
+      // Throttle updates to prevent excessive requests
+      const now = Date.now()
+      if (now - lastUpdateRef.current > 2000) {
+        lastUpdateRef.current = now
+        // Refresh the dashboard data
+        fetchDriverData();
+      }
+    };
+    
+    realtimeService.on('paymentProcessed', handlePaymentProcessed);
+    
+    // Cleanup
+    return () => {
+      realtimeService.off('paymentProcessed', handlePaymentProcessed);
+    };
   }, [])
 
   // Quick action items for drivers
@@ -126,7 +174,7 @@ export default function DriverDashboardScreen() {
       icon: 'ticket-account',
       color: 'bg-red-500',
       iconColor: 'white',
-      onPress: () => Alert.alert('Action', 'Navigate to view fines screen')
+      onPress: () => router.push('/(tabs)/driver-fines')
     },
     {
       id: 'payment-history',
@@ -135,7 +183,7 @@ export default function DriverDashboardScreen() {
       icon: 'cash-multiple',
       color: 'bg-green-500',
       iconColor: 'white',
-      onPress: () => Alert.alert('Action', 'Navigate to payment history screen')
+      onPress: () => router.push('/(tabs)/payment-history')
     },
     {
       id: 'make-payment',
@@ -144,7 +192,7 @@ export default function DriverDashboardScreen() {
       icon: 'cash',
       color: 'bg-blue-500',
       iconColor: 'white',
-      onPress: () => Alert.alert('Action', 'Navigate to payment screen')
+      onPress: () => router.push('/(tabs)/driver-fines') // Navigate to driver fines where they can select fines to pay
     }
   ]
 
@@ -181,14 +229,8 @@ export default function DriverDashboardScreen() {
   ]
 
   const handlePayFine = (fineId: string) => {
-    Alert.alert(
-      'Pay Fine',
-      'This would redirect to the payment screen',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Proceed', onPress: () => console.log('Proceed with payment for', fineId) }
-      ]
-    )
+    // Navigate to the payment processing screen with the fine ID
+    router.push(`/(tabs)/process-payment?fineId=${fineId}`);
   }
 
   return (
@@ -196,9 +238,27 @@ export default function DriverDashboardScreen() {
       <View className="p-4">
         {/* Welcome Header */}
         <View className="bg-blue-500 to-purple-600 rounded-2xl p-8 mb-6 shadow-lg">
-          <Text className="text-2xl text-white font-bold mb-2">Welcome back, {user?.firstName} {user?.lastName}!</Text>
-          <Text className="text-white text-opacity-90 mt-2">Driver Dashboard</Text>
+          <Text className="text-2xl text-white font-bold">Welcome back, {user?.firstName} {user?.lastName}!</Text>
+          <Text className="text-white text-opacity-90">Driver Dashboard</Text>
+          {userProfile?.driverLicenseNumber && (
+            <View className="flex-row mt-2 p-3 rounded-xl bg-blue-400 bg-opacity-20">
+               <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center mr-4">
+                <MaterialCommunityIcons name="card-account-details" size={20} color="#6B7280" />
+              </View>
+              <View>
+              <Text className="text-white text-sm">Driver License Number</Text>
+              <Text className="text-white text-lg font-bold">{userProfile.driverLicenseNumber}</Text>
+              </View>
+            </View>
+          )}
         </View>
+
+        {/* Real-time connection status */}
+        {/* <View className={`p-3 rounded-lg mb-4 ${realtimeService.isConnected() ? 'bg-green-100 border border-green-400' : 'bg-red-100 border border-red-400'}`}>
+          <Text className={`font-medium ${realtimeService.isConnected() ? 'text-green-800' : 'text-red-800'}`}>
+            {realtimeService.isConnected() ? 'Real-time updates connected' : 'Real-time updates disconnected'}
+          </Text>
+        </View> */}
 
         {/* Loading indicator */}
         {loading && (
@@ -281,7 +341,7 @@ export default function DriverDashboardScreen() {
         <View className="bg-white border border-gray-300 rounded-2xl p-4 shadow mb-6">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold text-gray-800">Recent Fines</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/driver-fines')}>
               <Text className="text-blue-500">View All</Text>
             </TouchableOpacity>
           </View>
@@ -291,7 +351,7 @@ export default function DriverDashboardScreen() {
               {recentFines.map((fine) => (
                 <View 
                   key={fine._id} 
-                  className="border border-gray-200 rounded-lg p-4"
+                  className="border border-gray-200 rounded-lg p-4 mb-2"
                 >
                   <View className="flex-row justify-between items-center mb-2">
                     <Text className="text-lg font-bold">Fine #{fine.fineId}</Text>
@@ -306,7 +366,7 @@ export default function DriverDashboardScreen() {
                   
                   {fine.status !== 'PAID' && (
                     <TouchableOpacity 
-                      className="mt-2 bg-green-500 p-2 rounded"
+                      className="mt-2 bg-green-500 p-3 rounded-xl"
                       onPress={() => handlePayFine(fine._id)}
                     >
                       <Text className="text-white text-center font-medium">Pay Fine</Text>

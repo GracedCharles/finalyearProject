@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const http = require('http'); // Add this for Socket.IO
+const { Server } = require('socket.io'); // Add this for Socket.IO
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const connectDB = require('./config/db');
 
@@ -21,6 +23,46 @@ const offenseRoutes = require('./routes/offenseRoutes');
 connectDB();
 
 const app = express();
+
+// Create HTTP server for Socket.IO
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all origins for development
+    methods: ["GET", "POST"]
+  }
+});
+
+// Store connected users
+const connectedUsers = new Map();
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+  
+  // Register user with their ID
+  socket.on('registerUser', (userId) => {
+    connectedUsers.set(userId, socket.id);
+    console.log(`User ${userId} registered with socket ${socket.id}`);
+  });
+  
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+    // Remove user from connected users
+    for (let [userId, socketId] of connectedUsers.entries()) {
+      if (socketId === socket.id) {
+        connectedUsers.delete(userId);
+        break;
+      }
+    }
+  });
+});
+
+// Make io available to other modules
+app.set('io', io);
 
 // Middleware
 app.use(cors({
@@ -58,7 +100,10 @@ app.get('/test', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Server is listening on 0.0.0.0:${PORT}`);
 });
+
+// Export io for use in other files
+module.exports = { app, io, connectedUsers };

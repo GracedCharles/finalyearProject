@@ -91,6 +91,7 @@ const getCurrentUser = async (req, res) => {
     }
     
     console.log('User found/created:', user);
+    // Return the full user object with all fields
     res.json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -251,14 +252,14 @@ const setupUserProfile = async (req, res) => {
     }
     
     // Validate required fields
-    const { firstName, lastName, address, phoneNumber } = req.body;
+    const { firstName, lastName, address, phoneNumber, driverLicenseNumber, officerRegistrationNumber } = req.body;
     
     if (!firstName || !lastName) {
       console.log('Missing required fields');
       return res.status(400).json({ error: 'First name and last name are required' });
     }
     
-    console.log('Setting up user profile:', { clerkUser, firstName, lastName, address, phoneNumber });
+    console.log('Setting up user profile:', { clerkUser, firstName, lastName, address, phoneNumber, driverLicenseNumber, officerRegistrationNumber });
     
     // Find and update the user (create if doesn't exist)
     const user = await User.findOneAndUpdate(
@@ -267,7 +268,9 @@ const setupUserProfile = async (req, res) => {
         firstName,
         lastName,
         address: address || '',
-        phoneNumber: phoneNumber || ''
+        phoneNumber: phoneNumber || '',
+        driverLicenseNumber: driverLicenseNumber || '', // Update driver license if provided
+        officerRegistrationNumber: officerRegistrationNumber || '' // Update officer registration number if provided
       },
       { new: true, upsert: true, runValidators: true } // Create if doesn't exist, return updated doc
     );
@@ -290,8 +293,56 @@ const setupUserProfile = async (req, res) => {
   }
 };
 
+// Update user driver license (for admin use)
+const updateUserDriverLicense = async (req, res) => {
+  try {
+    const { userId, driverLicenseNumber } = req.body;
+    
+    if (!userId || !driverLicenseNumber) {
+      return res.status(400).json({ error: 'User ID and driver license number are required' });
+    }
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { driverLicenseNumber },
+      { new: true, runValidators: true }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ message: 'Driver license updated successfully', user });
+  } catch (error) {
+    console.error('Error updating user driver license:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        error: 'Validation error', 
+        details: Object.keys(error.errors).map(key => ({
+          field: key,
+          message: error.errors[key].message
+        }))
+      });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get all users (for admin use)
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({}, '-__v').sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   getCurrentUser,
   createUser,
   setupUserProfile,
+  updateUserDriverLicense,
+  getAllUsers
 };

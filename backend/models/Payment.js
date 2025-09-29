@@ -17,7 +17,7 @@ const paymentSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['AIRTEL_MONEY', 'TNM_MPAMBA', 'BANK_TRANSFER'],
+    enum: ['AIRTEL_MONEY', 'TNM_MPAMBA', 'VISA', 'BANK_TRANSFER'],
     required: true,
   },
   transactionId: {

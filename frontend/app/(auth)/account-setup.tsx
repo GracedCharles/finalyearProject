@@ -1,16 +1,18 @@
-import { useUser } from '@clerk/clerk-expo'
+import { useAuth, useUser } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
 import React, { useState } from 'react'
 import { ActivityIndicator, Alert, Text, TextInput, TouchableOpacity, View } from 'react-native'
 
 export default function AccountSetupScreen() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+  const { getToken } = useAuth()
   const router = useRouter()
 
   const [firstName, setFirstName] = useState(user?.firstName || '')
   const [lastName, setLastName] = useState(user?.lastName || '')
   const [address, setAddress] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [driverLicenseNumber, setDriverLicenseNumber] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSave = async () => {
@@ -28,6 +30,7 @@ export default function AccountSetupScreen() {
       console.log('First name:', firstName)
       console.log('Last name:', lastName)
       console.log('Phone number:', phoneNumber)
+      console.log('Driver license number:', driverLicenseNumber)
       console.log('API URL:', process.env.EXPO_PUBLIC_API_URL)
       
       // Check if API URL is defined
@@ -52,6 +55,9 @@ export default function AccountSetupScreen() {
         return;
       }
       
+      // Get the auth token
+      const token = await getToken()
+      
       // Bypassing Clerk update for now, focusing on backend sync
       console.log('Bypassing Clerk update, storing only in backend...')
       
@@ -67,13 +73,14 @@ export default function AccountSetupScreen() {
         headers: {
           'Content-Type': 'application/json',
           // Include Clerk authentication token
-          'Authorization': `Bearer ${await user?.getToken()}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           firstName: firstName,
           lastName: lastName,
           address: address,
           phoneNumber: phoneNumber,
+          driverLicenseNumber: driverLicenseNumber
         }),
         signal: controller.signal
       })
@@ -135,6 +142,17 @@ export default function AccountSetupScreen() {
             placeholder="Enter your last name"
             className="w-full p-4 border border-gray-300 rounded-lg"
             onChangeText={setLastName}
+            editable={!isLoading}
+          />
+        </View>
+        
+        <View className="w-full mb-4">
+          <Text className="text-sm font-medium text-gray-700 mb-2">Driver License Number</Text>
+          <TextInput
+            value={driverLicenseNumber}
+            placeholder="Enter your driver license number"
+            className="w-full p-4 border border-gray-300 rounded-lg"
+            onChangeText={setDriverLicenseNumber}
             editable={!isLoading}
           />
         </View>

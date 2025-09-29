@@ -3,6 +3,7 @@ const OffenseType = require('../models/OffenseType');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const Payment = require('../models/Payment');
+const jwt = require('jsonwebtoken');
 
 // Generate a unique fine ID
 const generateFineId = () => {
@@ -101,6 +102,27 @@ const issueFine = async (req, res) => {
       description: `Issued fine ${fineId} to driver ${driverLicenseNumber}`,
       metadata: { fineId: fine._id }
     });
+
+    // Emit real-time event for dashboard updates
+    const io = req.app.get('io');
+    if (io) {
+      // Emit to all connected clients for general updates
+      io.emit('fineIssued', {
+        fineId: fine.fineId,
+        driverLicenseNumber: fine.driverLicenseNumber,
+        amount: fine.fineAmount,
+        officerId: officer._id,
+        timestamp: new Date()
+      });
+      
+      // Emit to specific officer for their dashboard
+      io.emit(`fineIssued:${officer._id}`, {
+        fineId: fine.fineId,
+        driverLicenseNumber: fine.driverLicenseNumber,
+        amount: fine.fineAmount,
+        timestamp: new Date()
+      });
+    }
 
     res.status(201).json(fine);
   } catch (error) {
@@ -278,7 +300,7 @@ const getOfficerFines = async (req, res) => {
     const total = await Fine.countDocuments(filter);
 
     res.json({
-      fines,
+      data: fines,
       totalPages: Math.ceil(total / limit),
       currentPage: page
     });
@@ -391,6 +413,26 @@ const processPayment = async (req, res) => {
       description: `Processed payment ${paymentId} for fine ${fineId}`,
       metadata: { fineId: fine._id, paymentId: payment._id }
     });
+
+    // Emit real-time event for payment updates
+    const io = req.app.get('io');
+    if (io) {
+      // Emit to all connected clients for general updates
+      io.emit('paymentProcessed', {
+        fineId: fine.fineId,
+        paymentId: payment.paymentId,
+        amount: payment.amount,
+        timestamp: new Date()
+      });
+      
+      // Emit to specific officer for their dashboard
+      io.emit(`paymentProcessed:${fine.officerId}`, {
+        fineId: fine.fineId,
+        paymentId: payment.paymentId,
+        amount: payment.amount,
+        timestamp: new Date()
+      });
+    }
 
     res.status(200).json({ 
       message: 'Payment processed successfully',
@@ -514,11 +556,83 @@ const getAnalytics = async (req, res) => {
   }
 };
 
+// Get recent activity for officer dashboard
+const getRecentActivity = async (req, res) => {
+  try {
+    let officer;
+    
+    // Check if user is authenticated
+    if (!req.auth || !req.auth.userId) {
+      console.log('No authentication provided for recent activity request');
+      // Let's also check if there's an authorization header
+      const authHeader = req.headers.authorization;
+      console.log('Authorization header:', authHeader);
+      
+      if (authHeader) {
+        // Try to manually decode the token
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const decoded = jwt.decode(token);
+          console.log('Manually decoded token:', decoded);
+          
+          if (decoded && decoded.sub) {
+            console.log('Found user ID in token:', decoded.sub);
+            // Try to find the user in the database
+            officer = await User.findOne({ clerkId: decoded.sub });
+            
+            if (!officer) {
+              console.log('Officer not found in database');
+              return res.status(404).json({ error: 'Officer not found' });
+            }
+          }
+        } catch (decodeError) {
+          console.error('Error manually decoding token:', decodeError);
+        }
+      }
+      
+      if (!officer) {
+        return res.status(401).json({ error: 'Unauthorized - No authentication provided' });
+      }
+    } else {
+      officer = await User.findOne({ clerkId: req.auth.userId });
+      if (!officer) {
+        return res.status(404).json({ error: 'Officer not found' });
+      }
+    }
+
+    // Get recent audit logs for this officer (this is the primary source of activity)
+    const recentActivity = await AuditLog.find({ userId: officer._id })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate('userId', 'firstName lastName');
+
+    // Format audit log activities
+    const activities = recentActivity.map(log => ({
+      id: log._id,
+      type: 'audit',
+      action: log.action,
+      description: log.description,
+      timestamp: log.createdAt,
+      user: log.userId
+    }));
+
+    // Sort all activities by timestamp and take the most recent 10
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const sortedActivities = activities.slice(0, 10);
+
+    res.json(sortedActivities);
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   issueFine,
   getDashboardStats,
   getOfficerFines,
   getFineById,
   processPayment,
-  getAnalytics
+  getAnalytics,
+  getRecentActivity
 };

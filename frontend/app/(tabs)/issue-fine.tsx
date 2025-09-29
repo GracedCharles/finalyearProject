@@ -1,8 +1,8 @@
 import { useUser } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
-import { fineApi, offenseApi } from '../../src/utils/api'
+import { ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { driverApi, fineApi, offenseApi, User } from '../../src/utils/api'
 
 // Define types
 interface OffenseType {
@@ -13,6 +13,14 @@ interface OffenseType {
   category?: string
 }
 
+interface Driver {
+  _id: string
+  firstName: string
+  lastName: string
+  email: string
+  driverLicenseNumber: string
+}
+
 export default function IssueFineScreen() {
   const { user } = useUser()
   const router = useRouter()
@@ -21,9 +29,11 @@ export default function IssueFineScreen() {
   const [vehicleReg, setVehicleReg] = useState('')
   const [offenseType, setOffenseType] = useState('')
   const [offenseTypes, setOffenseTypes] = useState<OffenseType[]>([])
-  const [driverName, setDriverName] = useState('')
+  const [driver, setDriver] = useState<Driver | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fetchingDriver, setFetchingDriver] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
 
   // Fetch offense types from API
   useEffect(() => {
@@ -42,27 +52,63 @@ export default function IssueFineScreen() {
     fetchOffenseTypes();
   }, [])
 
-  // In a real app, you might have an API to fetch driver name
-  // For now, we'll keep the mock implementation
-  const fetchDriverName = async (licenseNumber: string) => {
-    // In a real app, this would call your backend API
-    if (licenseNumber) {
-      // Simulate API delay
-      setTimeout(() => {
-        setDriverName('John Doe') // Mock driver name
-      }, 500)
-    } else {
-      setDriverName('')
+  // Fetch driver information when license number changes
+  const fetchDriverInfo = async (licenseNumber: string) => {
+    if (!licenseNumber) {
+      setDriver(null)
+      return
+    }
+
+    try {
+      setFetchingDriver(true)
+      setError(null)
+      
+      // Call the backend API to fetch driver information
+      const driverData: User = await driverApi.getDriverByLicense(licenseNumber)
+      
+      // Convert User type to Driver type
+      const driverInfo: Driver = {
+        _id: driverData._id,
+        firstName: driverData.firstName,
+        lastName: driverData.lastName,
+        email: driverData.email,
+        driverLicenseNumber: driverData.driverLicenseNumber || ''
+      }
+      
+      setDriver(driverInfo)
+    } catch (error: any) {
+      console.error('Error fetching driver info:', error)
+      setDriver(null)
+      // Only show error if it's not a 404 (driver not found)
+      if (error.message && !error.message.includes('404')) {
+        setError(error.message || 'Failed to fetch driver information')
+      }
+    } finally {
+      setFetchingDriver(false)
     }
   }
 
   useEffect(() => {
-    fetchDriverName(driverLicense)
+    // Debounce the driver info fetch to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      if (driverLicense) {
+        fetchDriverInfo(driverLicense)
+      } else {
+        setDriver(null)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
   }, [driverLicense])
 
   const handleIssueFine = async () => {
     if (!driverLicense || !vehicleReg || !offenseType) {
       Alert.alert('Error', 'Please fill in all fields')
+      return
+    }
+
+    if (!driver) {
+      Alert.alert('Error', 'Please enter a valid driver license number')
       return
     }
 
@@ -73,7 +119,7 @@ export default function IssueFineScreen() {
       // Call the backend API to issue the fine
       const result = await fineApi.issueFine({
         driverLicenseNumber: driverLicense,
-        driverName: driverName || 'Unknown Driver',
+        driverName: `${driver.firstName} ${driver.lastName}`,
         vehicleRegistration: vehicleReg,
         offenseTypeId: offenseType,
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 days from now
@@ -86,7 +132,7 @@ export default function IssueFineScreen() {
       setDriverLicense('')
       setVehicleReg('')
       setOffenseType('')
-      setDriverName('')
+      setDriver(null)
     } catch (error: any) {
       console.error('Error issuing fine:', error)
       setError(error.message || 'Failed to issue fine')
@@ -95,6 +141,8 @@ export default function IssueFineScreen() {
       setLoading(false)
     }
   }
+
+  const selectedOffense = offenseTypes.find(type => type._id === offenseType)
 
   return (
     <ScrollView className="flex-1 bg-white p-6">
@@ -116,16 +164,27 @@ export default function IssueFineScreen() {
       
       <View className="mb-6">
         <Text className="text-lg font-semibold mb-2">Driver Information</Text>
-        <TextInput
-          className="w-full p-4 border border-gray-300 rounded-lg mb-4"
-          value={driverLicense}
-          placeholder="Driver License Number"
-          onChangeText={setDriverLicense}
-        />
-        {driverName ? (
-          <Text className="text-green-600 mb-2">Driver Name: {driverName}</Text>
+        <View className="flex-row items-center">
+          <TextInput
+            className="flex-1 p-4 border border-gray-300 rounded-lg mb-4"
+            value={driverLicense}
+            placeholder="Driver License Number"
+            onChangeText={setDriverLicense}
+          />
+          {fetchingDriver && (
+            <ActivityIndicator size="small" color="#3B82F6" className="ml-2" />
+          )}
+        </View>
+        {driver ? (
+          <View className="bg-green-100 border border-green-400 rounded-lg p-3 mb-2">
+            <Text className="text-green-800 font-medium">Driver Found:</Text>
+            <Text className="text-green-700">Name: {driver.firstName} {driver.lastName}</Text>
+            <Text className="text-green-700">Email: {driver.email}</Text>
+          </View>
+        ) : driverLicense ? (
+          <Text className="text-red-600 mb-2">Driver not found for this license number</Text>
         ) : (
-          <Text className="text-gray-500 mb-2">Enter license number to fetch driver name</Text>
+          <Text className="text-gray-500 mb-2">Enter license number to fetch driver information</Text>
         )}
       </View>
       
@@ -141,24 +200,67 @@ export default function IssueFineScreen() {
       
       <View className="mb-6">
         <Text className="text-lg font-semibold mb-2">Offense Details</Text>
-        <View className="border border-gray-300 rounded-lg">
-          {offenseTypes.map((type) => (
-            <TouchableOpacity
-              key={type._id}
-              className={`p-4 border-b border-gray-200 ${offenseType === type._id ? 'bg-blue-100' : ''}`}
-              onPress={() => setOffenseType(type._id)}
-            >
-              <Text className="font-medium">{type.description}</Text>
-              <Text className="text-gray-600">Code: {type.code} - Amount: MWK{type.amount}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <TouchableOpacity 
+          className="border border-gray-300 rounded-lg p-4 bg-white flex-row justify-between items-center"
+          onPress={() => setShowDropdown(true)}
+        >
+          {selectedOffense ? (
+            <View>
+              <Text className="font-medium">{selectedOffense.description}</Text>
+              <Text className="text-gray-600">Code: {selectedOffense.code} - Amount: MWK{selectedOffense.amount}</Text>
+            </View>
+          ) : (
+            <Text className="text-gray-500">Select an offense...</Text>
+          )}
+          <Text className="text-gray-400">▼</Text>
+        </TouchableOpacity>
+        
+        <Modal
+          visible={showDropdown}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowDropdown(false)}
+        >
+          <TouchableOpacity 
+            className="flex-1 bg-black bg-opacity-50 justify-end"
+            activeOpacity={1}
+            onPressOut={() => setShowDropdown(false)}
+          >
+            <View className="bg-white rounded-t-2xl p-4 max-h-96">
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-lg font-bold">Select Offense</Text>
+                <TouchableOpacity onPress={() => setShowDropdown(false)}>
+                  <Text className="text-blue-500 font-bold">Close</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView>
+                {offenseTypes.length > 0 ? (
+                  offenseTypes.map((type) => (
+                    <TouchableOpacity
+                      key={type._id}
+                      className={`p-4 border-b border-gray-200 ${selectedOffense?._id === type._id ? 'bg-blue-50' : ''}`}
+                      onPress={() => {
+                        setOffenseType(type._id)
+                        setShowDropdown(false)
+                      }}
+                    >
+                      <Text className="font-medium">{type.description}</Text>
+                      <Text className="text-gray-600">Code: {type.code} - Amount: MWK{type.amount}</Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text className="p-4 text-gray-500 text-center">No offenses available</Text>
+                )}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </View>
       
       <TouchableOpacity 
-        className={`bg-blue-500 p-4 rounded-lg ${loading ? 'opacity-50' : ''}`}
+        className={`bg-blue-500 p-4 mb-8 rounded-lg ${loading ? 'opacity-50' : ''}`}
         onPress={handleIssueFine}
-        disabled={loading}
+        disabled={loading || !driver}
       >
         <Text className="text-white text-center font-bold">
           {loading ? 'Issuing Fine...' : 'Issue Fine'}

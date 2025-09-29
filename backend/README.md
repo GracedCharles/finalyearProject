@@ -34,6 +34,32 @@
 - `POST /api/users/setup` - Setup user profile (requires authentication)
 - Other endpoints for fines, drivers, etc.
 
+## Database Scripts
+
+### Adding Test Driver Licenses
+
+To add test driver license numbers to all existing users for testing purposes:
+
+```bash
+npm run add-test-licenses
+```
+
+This script:
+
+1. Finds all users without driver license numbers
+2. Generates unique test driver license numbers for each user
+3. Updates the users in the database
+
+Test licenses are generated in the format: `TEST-DL0001`, `TEST-DL0002`, etc.
+
+## Admin Dashboard Features
+
+The admin dashboard now includes functionality to manage user driver licenses:
+
+- View driver license numbers in the user management table
+- Edit driver license numbers for individual users
+- Add driver license numbers to users who don't have them
+
 ## Frontend Integration
 
 The frontend connects to the backend through a comprehensive API service located in `frontend/src/utils/api.tsx`. This service provides typed functions for all backend endpoints.

@@ -2,6 +2,36 @@ const Fine = require('../models/Fine');
 const Payment = require('../models/Payment');
 const User = require('../models/User');
 
+// Get driver by license number
+const getDriverByLicense = async (req, res) => {
+  try {
+    const { licenseNumber } = req.params;
+    
+    if (!licenseNumber) {
+      return res.status(400).json({ error: 'License number is required' });
+    }
+
+    // Find user by driver license number
+    const driver = await User.findOne({ driverLicenseNumber: licenseNumber });
+    
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    // Return only necessary driver information
+    res.json({
+      _id: driver._id,
+      firstName: driver.firstName,
+      lastName: driver.lastName,
+      email: driver.email,
+      driverLicenseNumber: driver.driverLicenseNumber
+    });
+  } catch (error) {
+    console.error('Error fetching driver:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 // Get a fine by fine ID
 const getFineByFineId = async (req, res) => {
   try {
@@ -41,12 +71,74 @@ const searchFines = async (req, res) => {
     const total = await Fine.countDocuments({ driverLicenseNumber });
 
     res.json({
-      fines,
+      data: fines,
       totalPages: Math.ceil(total / limit),
       currentPage: page
     });
   } catch (error) {
     console.error('Error searching fines:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get a fine by fine ID for drivers
+const getDriverFineByFineId = async (req, res) => {
+  try {
+    const { fineId } = req.params;
+    
+    // Get the driver's license number from query parameters
+    const driverLicenseNumber = req.query.driverLicenseNumber;
+    
+    if (!driverLicenseNumber) {
+      return res.status(400).json({ error: 'Driver license number is required' });
+    }
+
+    // Trim whitespace and normalize the driver license number
+    const normalizedLicenseNumber = driverLicenseNumber.trim();
+    
+    console.log('Debug - Searching for fine:', {
+      fineId,
+      requestedLicenseNumber: normalizedLicenseNumber
+    });
+
+    // Find the fine by fineId and driverLicenseNumber
+    const fine = await Fine.findOne({ 
+      fineId: fineId,
+      driverLicenseNumber: normalizedLicenseNumber
+    })
+      .populate('offenseTypeId')
+      .populate('officerId', 'firstName lastName');
+
+    if (!fine) {
+      // Let's also try with a more flexible search for debugging
+      const allFines = await Fine.find({ fineId: fineId });
+      console.log('All fines with this fineId:', allFines);
+      console.log('Requested driverLicenseNumber:', normalizedLicenseNumber);
+      
+      if (allFines.length > 0) {
+        console.log('Actual driverLicenseNumber in fine:', allFines[0].driverLicenseNumber);
+        console.log('Match comparison:', {
+          requested: normalizedLicenseNumber,
+          actual: allFines[0].driverLicenseNumber,
+          match: normalizedLicenseNumber === allFines[0].driverLicenseNumber
+        });
+        
+        // Also try case-insensitive comparison
+        console.log('Case-insensitive match:', {
+          requested: normalizedLicenseNumber.toLowerCase(),
+          actual: allFines[0].driverLicenseNumber.toLowerCase(),
+          match: normalizedLicenseNumber.toLowerCase() === allFines[0].driverLicenseNumber.toLowerCase()
+        });
+      } else {
+        console.log('No fines found with fineId:', fineId);
+      }
+      
+      return res.status(404).json({ error: 'Fine not found or not associated with this driver' });
+    }
+
+    res.json(fine);
+  } catch (error) {
+    console.error('Error fetching driver fine:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -78,7 +170,7 @@ const getPaymentHistory = async (req, res) => {
     const total = await Payment.countDocuments({ fineId: { $in: fineIds } });
 
     res.json({
-      payments,
+      data: payments,
       totalPages: Math.ceil(total / limit),
       currentPage: page
     });
@@ -123,6 +215,27 @@ const processPayment = async (req, res) => {
     fine.status = 'PAID';
     fine.paymentId = payment._id;
     await fine.save();
+
+    // Emit real-time event for payment updates
+    const io = req.app.get('io');
+    if (io) {
+      // Emit to all connected clients for general updates
+      io.emit('paymentProcessed', {
+        fineId: fine.fineId,
+        paymentId: payment.paymentId,
+        amount: payment.amount,
+        driverLicenseNumber: fine.driverLicenseNumber,
+        timestamp: new Date()
+      });
+      
+      // Emit to specific driver for their dashboard
+      io.emit(`paymentProcessed:${fine.driverLicenseNumber}`, {
+        fineId: fine.fineId,
+        paymentId: payment.paymentId,
+        amount: payment.amount,
+        timestamp: new Date()
+      });
+    }
 
     res.status(200).json({ 
       message: 'Payment processed successfully',
@@ -186,9 +299,11 @@ const getDriverDashboardStats = async (req, res) => {
 };
 
 module.exports = {
+  getDriverByLicense,
   getFineByFineId,
   searchFines,
   getPaymentHistory,
   processPayment,
-  getDriverDashboardStats
+  getDriverDashboardStats,
+  getDriverFineByFineId // Add this new function
 };

@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { adminApi } from "@/lib/api"
-import { AlertTriangle, Download, Edit, Mail, Plus, Search, Shield, Trash2, User } from "lucide-react"
+import { AlertTriangle, Download, Edit, Mail, Plus, Search, Shield, Trash2, User, CreditCard } from "lucide-react"
 import { useEffect, useState } from "react"
 
 interface UserType {
@@ -38,6 +38,7 @@ interface UserType {
   createdAt: string
   updatedAt: string
   isActive: boolean
+  driverLicenseNumber?: string
 }
 
 // Interface for creating a new user
@@ -51,6 +52,7 @@ export function UserManagement() {
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [isEditUserOpen, setIsEditUserOpen] = useState(false)
+  const [isEditLicenseOpen, setIsEditLicenseOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
   const [users, setUsers] = useState<UserType[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +65,11 @@ export function UserManagement() {
     email: "",
     password: "",
     role: "clerk" as UserType['role']
+  })
+
+  // State for driver license form
+  const [driverLicenseForm, setDriverLicenseForm] = useState({
+    driverLicenseNumber: ""
   })
 
   // Load users data
@@ -109,7 +116,8 @@ export function UserManagement() {
     const fullName = `${user.firstName} ${user.lastName}`.toLowerCase()
     const matchesSearch =
       fullName.includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.driverLicenseNumber && user.driverLicenseNumber.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesRole = selectedRole === "all" || user.role === selectedRole
     const matchesStatus = selectedStatus === "all" || 
       (selectedStatus === "active" && user.isActive) || 
@@ -124,6 +132,18 @@ export function UserManagement() {
       setIsEditUserOpen(true)
     } catch (err) {
       console.error('Error editing user:', err)
+    }
+  }
+
+  const handleEditLicense = async (user: UserType) => {
+    try {
+      setSelectedUser(user)
+      setDriverLicenseForm({
+        driverLicenseNumber: user.driverLicenseNumber || ""
+      })
+      setIsEditLicenseOpen(true)
+    } catch (err) {
+      console.error('Error editing license:', err)
     }
   }
 
@@ -152,6 +172,23 @@ export function UserManagement() {
     } catch (err) {
       console.error('Error updating user:', err)
       alert('Failed to update user: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    }
+  }
+
+  const handleSaveLicense = async () => {
+    try {
+      if (!selectedUser) return;
+      
+      await adminApi.updateUserDriverLicense(selectedUser._id, driverLicenseForm.driverLicenseNumber)
+      // Refresh the users list
+      const data = await adminApi.getAllUsers()
+      setUsers(data || [])
+      setIsEditLicenseOpen(false)
+      setSelectedUser(null)
+      alert('Driver license updated successfully!')
+    } catch (err) {
+      console.error('Error updating driver license:', err)
+      alert('Failed to update driver license: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }
   }
 
@@ -312,7 +349,7 @@ export function UserManagement() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search users by name or email..."
+                placeholder="Search users by name, email, or license..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
@@ -349,6 +386,7 @@ export function UserManagement() {
                 <TableRow>
                   <TableHead>User</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>License</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Join Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -374,6 +412,17 @@ export function UserManagement() {
                       </div>
                     </TableCell>
                     <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>
+                      {user.driverLicenseNumber ? (
+                        <Badge variant="outline" className="font-mono">
+                          {user.driverLicenseNumber}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          Not assigned
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>{getStatusBadge(user.isActive)}</TableCell>
                     <TableCell>
                       <p className="text-sm">{new Date(user.createdAt).toLocaleDateString()}</p>
@@ -385,11 +434,15 @@ export function UserManagement() {
                            Open
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40 bg-card">
+                        <DropdownMenuContent align="end" className="w-48 bg-card">
                           <DropdownMenuLabel className="text-start">Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleEditUser(user)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditLicense(user)}>
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            Edit License
                           </DropdownMenuItem>
                           <DropdownMenuItem>
                             <Mail className="mr-2 h-4 w-4" />
@@ -591,6 +644,46 @@ export function UserManagement() {
             </Button>
           </DialogFooter>
           <DialogClose onClose={() => setIsEditUserOpen(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Driver License Dialog */}
+      <Dialog open={isEditLicenseOpen} onOpenChange={setIsEditLicenseOpen}>
+        <DialogContent className="sm:max-w-[425px]" onClose={() => setIsEditLicenseOpen(false)}>
+          <DialogHeader>
+            <DialogTitle>Edit Driver License</DialogTitle>
+            <DialogDescription>
+              Update the driver license number for {selectedUser?.firstName} {selectedUser?.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="driver-license" className="text-right">
+                  License #
+                </Label>
+                <Input 
+                  id="driver-license" 
+                  value={driverLicenseForm.driverLicenseNumber}
+                  onChange={(e) => setDriverLicenseForm({...driverLicenseForm, driverLicenseNumber: e.target.value})}
+                  className="col-span-3" 
+                  placeholder="Enter driver license number"
+                />
+              </div>
+              <div className="text-sm text-muted-foreground col-span-4">
+                <p>Current license: {selectedUser.driverLicenseNumber || 'None assigned'}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              type="submit" 
+              onClick={handleSaveLicense}
+            >
+              Save License
+            </Button>
+          </DialogFooter>
+          <DialogClose onClose={() => setIsEditLicenseOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>

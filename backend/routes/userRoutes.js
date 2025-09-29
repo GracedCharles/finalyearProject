@@ -1,6 +1,7 @@
 const express = require('express');
-const { getCurrentUser, createUser, setupUserProfile } = require('../controllers/userController');
+const { getCurrentUser, createUser, setupUserProfile, updateUserDriverLicense, getAllUsers } = require('../controllers/userController');
 const requireAuth = require('../middleware/auth');
+const requireAdminAuth = require('../middleware/adminAuth');
 
 const router = express.Router();
 
@@ -22,5 +23,11 @@ router.post('/setup', requireAuth, (req, res, next) => {
   console.log('Request body:', req.body);
   next();
 }, setupUserProfile);
+
+// Get all users (requires admin authentication)
+router.get('/', requireAdminAuth, getAllUsers);
+
+// Update user driver license (requires admin authentication)
+router.put('/driver-license', requireAdminAuth, updateUserDriverLicense);
 
 module.exports = router;

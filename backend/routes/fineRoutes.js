@@ -6,7 +6,8 @@ const {
   getFineById,
   getDashboardStats,
   processPayment,
-  getAnalytics
+  getAnalytics,
+  getRecentActivity
 } = require('../controllers/fineController');
 const requireAuth = require('../middleware/auth');
 
@@ -18,6 +19,9 @@ router.post('/', issueFine);
 
 // Get dashboard statistics for officer
 router.get('/dashboard', getDashboardStats);
+
+// Get recent activity for officer dashboard
+router.get('/recent-activity', getRecentActivity);
 
 // Get analytics data for officer
 router.get('/analytics', getAnalytics);

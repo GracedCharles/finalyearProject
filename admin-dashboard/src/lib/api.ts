@@ -48,7 +48,7 @@ export const adminApi = {
   deleteFine: (id: string) => apiFetch(`/admin/fines/${id}`, {
     method: 'DELETE',
   }),
-  getAllUsers: () => apiFetch('/admin/users'),
+  getAllUsers: () => apiFetch('/users'),
   createUser: (userData: any) => apiFetch('/admin/users', {
     method: 'POST',
     body: JSON.stringify(userData),
@@ -59,6 +59,10 @@ export const adminApi = {
   }),
   deleteUser: (id: string) => apiFetch(`/admin/users/${id}`, {
     method: 'DELETE',
+  }),
+  updateUserDriverLicense: (userId: string, driverLicenseNumber: string) => apiFetch('/users/driver-license', {
+    method: 'PUT',
+    body: JSON.stringify({ userId, driverLicenseNumber }),
   }),
   getAllPayments: (params?: Record<string, string>) => {
     const queryString = params ? `?${new URLSearchParams(params).toString()}` : '';
