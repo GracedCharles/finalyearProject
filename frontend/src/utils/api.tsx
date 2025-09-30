@@ -45,7 +45,6 @@ export interface User {
   address?: string;
   phoneNumber?: string;
   driverLicenseNumber?: string;
-  officerRegistrationNumber?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -116,28 +115,6 @@ export interface PaginatedResponse<T> {
   data: T[];
   totalPages: number;
   currentPage: number;
-}
-
-// Define types for recent activity
-export interface RecentActivity {
-  id: string;
-  type: 'audit' | 'fine' | 'payment';
-  action: string;
-  description: string;
-  timestamp: string;
-  user?: {
-    firstName: string;
-    lastName: string;
-  };
-  fine?: {
-    id: string;
-    fineId: string;
-    amount: number;
-  };
-  payment?: {
-    id: string;
-    amount: number;
-  };
 }
 
 // Generic API call function
@@ -218,7 +195,6 @@ export const userApi = {
     address?: string;
     phoneNumber?: string;
     driverLicenseNumber?: string;
-    officerRegistrationNumber?: string;
   }): Promise<User> => 
     authenticatedApiCall('/users/setup', {
       method: 'POST',
@@ -267,9 +243,6 @@ export const fineApi = {
   getDashboardStats: (): Promise<DashboardStats> => 
     authenticatedApiCall('/fines/dashboard', { method: 'GET' }),
     
-  getRecentActivity: (): Promise<RecentActivity[]> => 
-    authenticatedApiCall('/fines/recent-activity', { method: 'GET' }),
-    
   getAnalytics: (params?: { period?: string }): Promise<AnalyticsData> => {
     const queryString = params ? `?${new URLSearchParams(params as any).toString()}` : '';
     return authenticatedApiCall(`/fines/analytics${queryString}`, { method: 'GET' });
@@ -282,7 +255,7 @@ export const fineApi = {
     startDate?: string;
     endDate?: string;
     search?: string;
-  }): Promise<PaginatedResponse<Fine>> => {
+  }): Promise<{ fines: Fine[]; totalPages: number; currentPage: number }> => {
     const queryString = params ? `?${new URLSearchParams(params as any).toString()}` : '';
     return authenticatedApiCall(`/fines/my-fines${queryString}`, { method: 'GET' });
   },
@@ -306,14 +279,6 @@ export const fineApi = {
 export const driverApi = {
   getDriverByLicense: (licenseNumber: string): Promise<User> => 
     apiCall(`/drivers/license/${encodeURIComponent(licenseNumber)}`, { method: 'GET' }),
-    
-  getDriverFineById: (fineId: string, driverLicenseNumber: string): Promise<Fine> => {
-    // Ensure the driver license number is properly encoded and trimmed
-    const normalizedLicenseNumber = driverLicenseNumber.trim();
-    const encodedLicenseNumber = encodeURIComponent(normalizedLicenseNumber);
-    console.log('API Call - Fetching driver fine with:', { fineId, driverLicenseNumber: normalizedLicenseNumber, encodedLicenseNumber });
-    return apiCall(`/drivers/fines/${encodeURIComponent(fineId)}/driver?driverLicenseNumber=${encodedLicenseNumber}`, { method: 'GET' });
-  },
     
   getDashboardStats: (driverLicenseNumber?: string): Promise<DriverDashboardStats> => {
     const queryString = driverLicenseNumber ? `?driverLicenseNumber=${encodeURIComponent(driverLicenseNumber)}` : '';

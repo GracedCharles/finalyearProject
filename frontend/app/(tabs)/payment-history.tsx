@@ -1,9 +1,8 @@
 import { useUser } from '@clerk/clerk-expo'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native'
 import { driverApi, User, userApi } from '../../src/utils/api'
-import { realtimeService } from '../../src/utils/realtime'
 
 // Define types
 interface Payment {
@@ -28,7 +27,6 @@ export default function PaymentHistoryScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<User | null>(null)
-  const lastUpdateRef = useRef<number>(0)
 
   // Fetch payment history
   useEffect(() => {
@@ -49,17 +47,14 @@ export default function PaymentHistoryScreen() {
           return;
         }
         
-        // Connect to real-time service
-        realtimeService.connect()
-        
         // Fetch payment history
         const response = await driverApi.getPaymentHistory(driverLicenseNumber, {
           page: 1,
           limit: 20
         });
         
-        // Handle the response structure from the backend
-        const paymentsArray = response.data || []
+        // Handle the actual response structure from the backend
+        const paymentsArray = (response as any).payments || response.data || []
         if (Array.isArray(paymentsArray)) {
           setPayments(paymentsArray)
         } else {
@@ -76,25 +71,6 @@ export default function PaymentHistoryScreen() {
     }
 
     fetchPaymentHistory()
-    
-    // Set up real-time listeners
-    const handlePaymentProcessed = (data: any) => {
-      console.log('Real-time payment processed in payment history:', data);
-      // Throttle updates to prevent excessive requests
-      const now = Date.now()
-      if (now - lastUpdateRef.current > 2000) {
-        lastUpdateRef.current = now
-        // Refresh the payment history
-        fetchPaymentHistory();
-      }
-    };
-    
-    realtimeService.on('paymentProcessed', handlePaymentProcessed);
-    
-    // Cleanup
-    return () => {
-      realtimeService.off('paymentProcessed', handlePaymentProcessed);
-    };
   }, [])
 
   const formatDate = (dateString: string) => {
@@ -131,7 +107,7 @@ export default function PaymentHistoryScreen() {
               >
                 <View className="flex-row justify-between items-center mb-2">
                   <Text className="text-lg font-bold">Payment #{payment.paymentId}</Text>
-                  <Text className={`px-2 py-1 rounded text-xs ${payment.status === 'SUCCESS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  <Text className={`px-2 py-1 rounded ${payment.status === 'SUCCESS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                     {payment.status}
                   </Text>
                 </View>

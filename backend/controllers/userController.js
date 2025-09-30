@@ -91,7 +91,6 @@ const getCurrentUser = async (req, res) => {
     }
     
     console.log('User found/created:', user);
-    // Return the full user object with all fields
     res.json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -252,14 +251,14 @@ const setupUserProfile = async (req, res) => {
     }
     
     // Validate required fields
-    const { firstName, lastName, address, phoneNumber, driverLicenseNumber, officerRegistrationNumber } = req.body;
+    const { firstName, lastName, address, phoneNumber, driverLicenseNumber } = req.body;
     
     if (!firstName || !lastName) {
       console.log('Missing required fields');
       return res.status(400).json({ error: 'First name and last name are required' });
     }
     
-    console.log('Setting up user profile:', { clerkUser, firstName, lastName, address, phoneNumber, driverLicenseNumber, officerRegistrationNumber });
+    console.log('Setting up user profile:', { clerkUser, firstName, lastName, address, phoneNumber, driverLicenseNumber });
     
     // Find and update the user (create if doesn't exist)
     const user = await User.findOneAndUpdate(
@@ -269,8 +268,7 @@ const setupUserProfile = async (req, res) => {
         lastName,
         address: address || '',
         phoneNumber: phoneNumber || '',
-        driverLicenseNumber: driverLicenseNumber || '', // Update driver license if provided
-        officerRegistrationNumber: officerRegistrationNumber || '' // Update officer registration number if provided
+        driverLicenseNumber: driverLicenseNumber || '' // Update driver license if provided
       },
       { new: true, upsert: true, runValidators: true } // Create if doesn't exist, return updated doc
     );

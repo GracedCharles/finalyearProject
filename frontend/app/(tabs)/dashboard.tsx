@@ -4,36 +4,14 @@ import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import { fineApi, User, userApi } from '../../src/utils/api'
-import { realtimeService } from '../../src/utils/realtime'
 import DriverDashboardScreen from '../components/driver-dashboard'
 
 // Define types
 interface DashboardStats {
-  finesIssuedToday: number;
-  pendingPayments: number;
-  totalCollected: number;
-  totalOutstanding: number;
-}
-
-interface RecentActivity {
-  id: string;
-  type: 'audit' | 'fine' | 'payment';
-  action: string;
-  description: string;
-  timestamp: string;
-  user?: {
-    firstName: string;
-    lastName: string;
-  };
-  fine?: {
-    id: string;
-    fineId: string;
-    amount: number;
-  };
-  payment?: {
-    id: string;
-    amount: number;
-  };
+  finesIssuedToday: number
+  pendingPayments: number
+  totalCollected: number
+  totalOutstanding: number
 }
 
 // Define icon name type
@@ -58,7 +36,7 @@ interface QuickAction {
 }
 
 export default function DashboardScreen() {
-  const { user } = useUser()
+ const { user } = useUser()
   const router = useRouter()
   
   const [stats, setStats] = useState<DashboardStats>({
@@ -68,11 +46,9 @@ export default function DashboardScreen() {
     totalOutstanding: 0
   })
   
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   // Fetch user role and dashboard stats
   useEffect(() => {
@@ -83,33 +59,20 @@ export default function DashboardScreen() {
         
         // Fetch user role from backend
         const currentUser: User = await userApi.getCurrentUser();
-        setCurrentUser(currentUser)
         setUserRole(currentUser.role)
-        
-        // Connect to real-time service
-        realtimeService.connect()
-        if (currentUser._id) {
-          realtimeService.setUserId(currentUser._id)
-        }
         
         // Only fetch officer dashboard stats if user is an officer or admin
         if (currentUser.role !== 'clerk') {
           try {
-            const dashboardStats = await fineApi.getDashboardStats();
+            const dashboardStats: any = await fineApi.getDashboardStats();
+            console.log('Officer dashboard stats API response:', dashboardStats);
+            
             setStats({
               finesIssuedToday: dashboardStats.finesToday || 0,
               pendingPayments: dashboardStats.pendingFines || 0,
               totalCollected: dashboardStats.totalCollected || 0,
               totalOutstanding: 0 // This would need a separate API call to calculate
             });
-            
-            // Fetch recent activity
-            const activity = await fineApi.getRecentActivity();
-            // Remove any potential duplicates by ID
-            const uniqueActivity = activity.filter((item, index, self) =>
-              index === self.findIndex((t) => t.id === item.id)
-            );
-            setRecentActivity(uniqueActivity);
           } catch (dashboardError: any) {
             console.error('Error fetching dashboard stats:', dashboardError);
             setError(dashboardError.message || 'Failed to load dashboard statistics');
@@ -124,56 +87,6 @@ export default function DashboardScreen() {
     };
 
     fetchUserData();
-    
-    // Set up real-time listeners
-    const handleFineIssued = (data: any) => {
-      console.log('Real-time fine issued:', data);
-      // Update stats
-      setStats(prevStats => ({
-        ...prevStats,
-        finesIssuedToday: prevStats.finesIssuedToday + 1
-      }));
-      
-      // Add to recent activity
-      const newActivity: RecentActivity = {
-        id: `fine-${Date.now()}`,
-        type: 'fine',
-        action: 'FINE_ISSUED',
-        description: `Issued fine ${data.fineId} to driver ${data.driverLicenseNumber}`,
-        timestamp: new Date().toISOString()
-      };
-      
-      setRecentActivity(prevActivity => [newActivity, ...prevActivity].slice(0, 10));
-    };
-    
-    const handlePaymentProcessed = (data: any) => {
-      console.log('Real-time payment processed:', data);
-      // Update stats
-      setStats(prevStats => ({
-        ...prevStats,
-        totalCollected: prevStats.totalCollected + data.amount
-      }));
-      
-      // Add to recent activity
-      const newActivity: RecentActivity = {
-        id: `payment-${Date.now()}`,
-        type: 'payment',
-        action: 'PAYMENT_PROCESSED',
-        description: `Processed payment for fine ${data.fineId}`,
-        timestamp: new Date().toISOString()
-      };
-      
-      setRecentActivity(prevActivity => [newActivity, ...prevActivity].slice(0, 10));
-    };
-    
-    realtimeService.on('fineIssued', handleFineIssued);
-    realtimeService.on('paymentProcessed', handlePaymentProcessed);
-    
-    // Cleanup
-    return () => {
-      realtimeService.off('fineIssued', handleFineIssued);
-      realtimeService.off('paymentProcessed', handlePaymentProcessed);
-    };
   }, [])
 
   // If still loading, show loading indicator
@@ -258,42 +171,6 @@ export default function DashboardScreen() {
     }
   ]
 
-  // Get icon for activity type
-  const getActivityIcon = (type: string, action: string): IconName => {
-    if (type === 'fine' || action.includes('FINE')) return 'ticket';
-    if (type === 'payment' || action.includes('PAYMENT')) return 'cash';
-    if (type === 'audit') return 'account';
-    return 'information';
-  };
-
-  // Get icon color for activity type
-  const getActivityIconColor = (type: string, action: string): string => {
-    if (type === 'fine' || action.includes('FINE')) return '#3B82F6';
-    if (type === 'payment' || action.includes('PAYMENT')) return '#10B981';
-    if (type === 'audit') return '#8B5CF6';
-    return '#6B7280';
-  };
-
-  // Get background color for activity icon
-  const getActivityIconBackground = (type: string, action: string): string => {
-    if (type === 'fine' || action.includes('FINE')) return 'bg-blue-100';
-    if (type === 'payment' || action.includes('PAYMENT')) return 'bg-green-100';
-    if (type === 'audit') return 'bg-purple-100';
-    return 'bg-gray-100';
-  };
-
-  // Format timestamp to relative time
-  const formatTimeAgo = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-    return `${Math.floor(diffInSeconds / 86400)} days ago`;
-  };
-
   // Render officer dashboard content
   const renderOfficerDashboard = () => (
     <View>
@@ -301,17 +178,6 @@ export default function DashboardScreen() {
       <View className="bg-blue-500 to-purple-600 rounded-2xl p-8 mb-6 shadow-lg">
         <Text className="text-2xl text-white font-bold">Welcome back, {user?.firstName} {user?.lastName}!</Text>
         <Text className="text-white text-opacity-90">Traffic Officer Dashboard</Text>
-        {currentUser?.driverLicenseNumber && (
-          <View className="flex-row mt-2 p-3 rounded-xl bg-blue-400 bg-opacity-20">
-          <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center mr-4">
-           <MaterialCommunityIcons name="card-account-details" size={20} color="#6B7280" />
-         </View>
-         <View>
-         <Text className="text-white text-sm">Driver License Number</Text>
-         <Text className="text-white text-lg font-bold">{currentUser.driverLicenseNumber}</Text>
-         </View>
-       </View>
-        )}
       </View>
 
       {/* Error message */}
@@ -324,13 +190,6 @@ export default function DashboardScreen() {
           </Text>
         </View>
       )}
-
-      {/* Real-time connection status */}
-      {/* <View className={`p-3 rounded-lg mb-4 ${realtimeService.isConnected() ? 'bg-green-100 border border-green-400' : 'bg-red-100 border border-red-400'}`}>
-        <Text className={`font-medium ${realtimeService.isConnected() ? 'text-green-800' : 'text-red-800'}`}>
-          {realtimeService.isConnected() ? 'Real-time updates connected' : 'Real-time updates disconnected'}
-        </Text>
-      </View> */}
 
       {/* Stats Overview */}
       <View className="mb-6">
@@ -392,27 +251,38 @@ export default function DashboardScreen() {
       <View className="bg-white border border-gray-300 rounded-2xl p-4 shadow mb-6">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-lg font-bold text-gray-800">Recent Activity</Text>
+          <TouchableOpacity>
+            <Text className="text-blue-500">View All</Text>
+          </TouchableOpacity>
         </View>
-        <View className="space-y-4">
-          {recentActivity && recentActivity.length > 0 ? (
-            recentActivity.slice(0, 10).map((activity) => (
-              <View key={activity.id} className="flex-row items-center py-3 border-b border-gray-200">
-                <View className={`w-10 h-10 ${getActivityIconBackground(activity.type, activity.action)} rounded-full items-center justify-center`}>
-                  <MaterialCommunityIcons 
-                    name={getActivityIcon(activity.type, activity.action)} 
-                    size={20} 
-                    color={getActivityIconColor(activity.type, activity.action)} 
-                  />
-                </View>
-                <View className="ml-3 flex-1">
-                  <Text className="font-medium text-gray-900">{activity.description}</Text>
-                  <Text className="text-gray-500 text-sm">{formatTimeAgo(activity.timestamp)}</Text>
-                </View>
-              </View>
-            ))
-          ) : (
-            <Text className="text-gray-500 text-center py-4">No recent activity</Text>
-          )}
+        <View className="space-y-6">
+          <View className="flex-row items-center justify-between">
+            <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center">
+              <MaterialCommunityIcons name="ticket" size={20} color="#3B82F6" />
+            </View>
+            <View className="ml-3 flex-row justify-between flex-1">
+              <Text className="font-medium text-gray-900">Fine #FN-2023-001 issued</Text>
+              <Text className="text-gray-500 text-sm">2 hours ago</Text>
+            </View>
+          </View>
+          <View className="flex-row items-center mt-4">
+            <View className="w-10 h-10 bg-green-100 rounded-full items-center justify-center">
+              <MaterialCommunityIcons name="cash" size={20} color="#10B981" />
+            </View>
+            <View className="ml-3 flex-row justify-between flex-1">
+              <Text className="font-medium text-gray-900">Payment received</Text>
+              <Text className="text-gray-500 text-sm">5 hours ago</Text>
+            </View>
+          </View>
+          <View className="flex-row items-center mt-4">
+            <View className="w-10 h-10 bg-purple-100 rounded-full items-center justify-center">
+              <MaterialCommunityIcons name="account" size={20} color="#8B5CF6" />
+            </View>
+            <View className="ml-3 flex-row items-center justify-between flex-1">
+              <Text className="font-medium text-gray-900">New driver registered</Text>
+              <Text className="text-gray-500 text-sm">Yesterday</Text>
+            </View>
+          </View>
         </View>
       </View>
     </View>

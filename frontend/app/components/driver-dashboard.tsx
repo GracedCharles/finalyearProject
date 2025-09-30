@@ -1,10 +1,9 @@
 import { useUser } from '@clerk/clerk-expo'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useRouter } from 'expo-router'
-import React, { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import { driverApi, DriverDashboardStats, User, userApi } from '../../src/utils/api'
-import { realtimeService } from '../../src/utils/realtime'
 
 // Define types
 interface Fine {
@@ -57,7 +56,6 @@ export default function DriverDashboardScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [userProfile, setUserProfile] = useState<User | null>(null)
-  const lastUpdateRef = useRef<number>(0)
 
   // Fetch user profile to get driver license number
   useEffect(() => {
@@ -89,9 +87,6 @@ export default function DriverDashboardScreen() {
           setLoading(false);
           return;
         }
-        
-        // Connect to real-time service
-        realtimeService.connect()
         
         // Fetch driver dashboard stats
         try {
@@ -144,25 +139,6 @@ export default function DriverDashboardScreen() {
     }
 
     fetchDriverData()
-    
-    // Set up real-time listeners
-    const handlePaymentProcessed = (data: any) => {
-      console.log('Real-time payment processed in driver dashboard:', data);
-      // Throttle updates to prevent excessive requests
-      const now = Date.now()
-      if (now - lastUpdateRef.current > 2000) {
-        lastUpdateRef.current = now
-        // Refresh the dashboard data
-        fetchDriverData();
-      }
-    };
-    
-    realtimeService.on('paymentProcessed', handlePaymentProcessed);
-    
-    // Cleanup
-    return () => {
-      realtimeService.off('paymentProcessed', handlePaymentProcessed);
-    };
   }, [])
 
   // Quick action items for drivers
@@ -192,7 +168,7 @@ export default function DriverDashboardScreen() {
       icon: 'cash',
       color: 'bg-blue-500',
       iconColor: 'white',
-      onPress: () => router.push('/(tabs)/driver-fines') // Navigate to driver fines where they can select fines to pay
+      onPress: () => Alert.alert('Action', 'Navigate to payment screen')
     }
   ]
 
@@ -229,8 +205,14 @@ export default function DriverDashboardScreen() {
   ]
 
   const handlePayFine = (fineId: string) => {
-    // Navigate to the payment processing screen with the fine ID
-    router.push(`/(tabs)/process-payment?fineId=${fineId}`);
+    Alert.alert(
+      'Pay Fine',
+      'This would redirect to the payment screen',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Proceed', onPress: () => console.log('Proceed with payment for', fineId) }
+      ]
+    )
   }
 
   return (
@@ -252,13 +234,6 @@ export default function DriverDashboardScreen() {
             </View>
           )}
         </View>
-
-        {/* Real-time connection status */}
-        {/* <View className={`p-3 rounded-lg mb-4 ${realtimeService.isConnected() ? 'bg-green-100 border border-green-400' : 'bg-red-100 border border-red-400'}`}>
-          <Text className={`font-medium ${realtimeService.isConnected() ? 'text-green-800' : 'text-red-800'}`}>
-            {realtimeService.isConnected() ? 'Real-time updates connected' : 'Real-time updates disconnected'}
-          </Text>
-        </View> */}
 
         {/* Loading indicator */}
         {loading && (
@@ -351,7 +326,7 @@ export default function DriverDashboardScreen() {
               {recentFines.map((fine) => (
                 <View 
                   key={fine._id} 
-                  className="border border-gray-200 rounded-lg p-4 mb-2"
+                  className="border border-gray-200 rounded-lg p-4"
                 >
                   <View className="flex-row justify-between items-center mb-2">
                     <Text className="text-lg font-bold">Fine #{fine.fineId}</Text>
@@ -366,7 +341,7 @@ export default function DriverDashboardScreen() {
                   
                   {fine.status !== 'PAID' && (
                     <TouchableOpacity 
-                      className="mt-2 bg-green-500 p-3 rounded-xl"
+                      className="mt-2 bg-green-500 p-2 rounded"
                       onPress={() => handlePayFine(fine._id)}
                     >
                       <Text className="text-white text-center font-medium">Pay Fine</Text>

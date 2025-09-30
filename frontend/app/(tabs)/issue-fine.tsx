@@ -1,7 +1,7 @@
 import { useUser } from '@clerk/clerk-expo'
 import { useRouter } from 'expo-router'
 import React, { useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { driverApi, fineApi, offenseApi, User } from '../../src/utils/api'
 
 // Define types
@@ -33,7 +33,6 @@ export default function IssueFineScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fetchingDriver, setFetchingDriver] = useState(false)
-  const [showDropdown, setShowDropdown] = useState(false)
 
   // Fetch offense types from API
   useEffect(() => {
@@ -142,8 +141,6 @@ export default function IssueFineScreen() {
     }
   }
 
-  const selectedOffense = offenseTypes.find(type => type._id === offenseType)
-
   return (
     <ScrollView className="flex-1 bg-white p-6">
       <Text className="text-2xl font-bold mb-6">Issue Traffic Fine</Text>
@@ -200,61 +197,18 @@ export default function IssueFineScreen() {
       
       <View className="mb-6">
         <Text className="text-lg font-semibold mb-2">Offense Details</Text>
-        <TouchableOpacity 
-          className="border border-gray-300 rounded-lg p-4 bg-white flex-row justify-between items-center"
-          onPress={() => setShowDropdown(true)}
-        >
-          {selectedOffense ? (
-            <View>
-              <Text className="font-medium">{selectedOffense.description}</Text>
-              <Text className="text-gray-600">Code: {selectedOffense.code} - Amount: MWK{selectedOffense.amount}</Text>
-            </View>
-          ) : (
-            <Text className="text-gray-500">Select an offense...</Text>
-          )}
-          <Text className="text-gray-400">▼</Text>
-        </TouchableOpacity>
-        
-        <Modal
-          visible={showDropdown}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowDropdown(false)}
-        >
-          <TouchableOpacity 
-            className="flex-1 bg-black bg-opacity-50 justify-end"
-            activeOpacity={1}
-            onPressOut={() => setShowDropdown(false)}
-          >
-            <View className="bg-white rounded-t-2xl p-4 max-h-96">
-              <View className="flex-row justify-between items-center mb-4">
-                <Text className="text-lg font-bold">Select Offense</Text>
-                <TouchableOpacity onPress={() => setShowDropdown(false)}>
-                  <Text className="text-blue-500 font-bold">Close</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView>
-                {offenseTypes.length > 0 ? (
-                  offenseTypes.map((type) => (
-                    <TouchableOpacity
-                      key={type._id}
-                      className={`p-4 border-b border-gray-200 ${selectedOffense?._id === type._id ? 'bg-blue-50' : ''}`}
-                      onPress={() => {
-                        setOffenseType(type._id)
-                        setShowDropdown(false)
-                      }}
-                    >
-                      <Text className="font-medium">{type.description}</Text>
-                      <Text className="text-gray-600">Code: {type.code} - Amount: MWK{type.amount}</Text>
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <Text className="p-4 text-gray-500 text-center">No offenses available</Text>
-                )}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </Modal>
+        <View className="border border-gray-300 rounded-lg">
+          {offenseTypes.map((type) => (
+            <TouchableOpacity
+              key={type._id}
+              className={`p-4 border-b border-gray-200 ${offenseType === type._id ? 'bg-blue-100' : ''}`}
+              onPress={() => setOffenseType(type._id)}
+            >
+              <Text className="font-medium">{type.description}</Text>
+              <Text className="text-gray-600">Code: {type.code} - Amount: MWK{type.amount}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
       
       <TouchableOpacity 

@@ -6,15 +6,11 @@ const {
   searchFines,
   processPayment,
   getDriverDashboardStats,
-  getDriverByLicense,
-  getDriverFineByFineId
+  getDriverByLicense
 } = require('../controllers/driverController');
 
 // These routes don't require authentication as they are for drivers looking up fines
 // In a production environment, you might want to add rate limiting
-
-// Get a fine by fine ID for drivers
-router.get('/fines/:fineId/driver', getDriverFineByFineId);
 
 // Get driver by license number
 router.get('/license/:licenseNumber', getDriverByLicense);

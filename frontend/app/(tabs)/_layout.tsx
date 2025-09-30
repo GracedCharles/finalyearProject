@@ -72,6 +72,21 @@ export default function TabLayout() {
             ),
           }}
         />
+        
+        <Tabs.Screen
+        name="driver-fines"
+        options={{
+          title: userRole === 'clerk' ? 'My Fines' : 'Driver Fines',
+          tabBarLabel: userRole === 'clerk' ? 'My Fines' : 'Driver Fines',
+          headerTitle: userRole === 'clerk' ? 'My Fines' : 'Driver Fines',
+          tabBarIcon: ({ color }) =>
+            userRole === 'clerk' ? (
+              <MaterialCommunityIcons name="ticket-account" size={24} color={color} />
+            ) : (
+              <MaterialCommunityIcons name="account-tie" size={24} color={color} />
+            ),
+        }}
+      />
 
       {userRole !== 'clerk' ? (
         <Tabs.Screen
@@ -104,24 +119,8 @@ export default function TabLayout() {
       ) : (
         <Tabs.Screen name="view-fines" options={{ href: null }} />
       )}
-      {userRole === 'clerk' ? (
-         <Tabs.Screen
-         name="driver-fines"
-         options={{
-           title: 'My Fines',
-           tabBarLabel: 'My Fines',
-           headerTitle: 'My Traffic Fines',
-           tabBarIcon: ({ color }) => (
-             <MaterialCommunityIcons name="car" size={24} color={color} />
-           ),
-         }}
-       />
-      ) : (
-        <Tabs.Screen name="driver-fines" options={{ href: null }} />
-      )}
       
       {userRole === 'clerk' ? (
-        
         <Tabs.Screen
           name="payment-history"
           options={{
@@ -148,28 +147,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      
-      <Tabs.Screen
-        name="edit-officer-profile"
-        options={{
-          title: 'Edit Officer Profile',
-          tabBarLabel: 'Edit Officer Profile',
-          headerTitle: 'Edit Officer Profile',
-          href: null,
-        }}
-      />
-      
-      <Tabs.Screen
-        name="process-payment"
-        options={{
-          title: 'Process Payment',
-          tabBarLabel: 'Process Payment',
-          headerTitle: 'Process Payment',
-          href: null,
-        }}
-      />
-      
-     
       </Tabs>
     </AuthGuard>
   )

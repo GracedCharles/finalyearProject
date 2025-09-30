@@ -3,12 +3,12 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { driverApi, User, userApi } from '../../src/utils/api';
 
@@ -133,11 +133,6 @@ export default function ProfileScreen() {
             <Text className="text-gray-600 text-base mt-1">
               {userProfile?.email}
             </Text>
-            {userProfile?.role !== 'clerk' && userProfile?.officerRegistrationNumber && (
-              <Text className="text-gray-600 text-base mt-2">
-                Officer #: {userProfile.officerRegistrationNumber}
-              </Text>
-            )}
           </View>
           
           <View className="flex-row justify-between mt-4 pt-4 border-t border-gray-100">
@@ -149,7 +144,7 @@ export default function ProfileScreen() {
                   driverStats ? driverStats.activeFines + driverStats.overdueFines : '0'
                 )}
               </Text>
-              <Text className="text-gray-600 text-sm">Fines</Text>
+              <Text className="text-gray-600 text-sm">Fines Paid</Text>
             </View>
             <View className="items-center">
               <Text className="text-lg font-bold text-gray-900">
@@ -179,22 +174,6 @@ export default function ProfileScreen() {
           <View className="p-4 border-b border-gray-200">
             <Text className="text-lg font-semibold text-gray-900">Profile Settings</Text>
           </View>
-          {userProfile?.role !== 'clerk' && (
-            <MenuItem
-              iconName="account-details"
-              title="Officer Registration"
-              subtitle={userProfile?.officerRegistrationNumber ? "Update your registration number" : "Add your officer registration number"}
-              onPress={() => router.push('/(tabs)/edit-officer-profile')}
-            />
-          )}
-          {userProfile?.role === 'clerk' && (
-            <MenuItem
-              iconName="card-account-details"
-              title="Driver License"
-              subtitle={userProfile?.driverLicenseNumber ? "Update your license number" : "Add your driver license number"}
-              onPress={() => router.push('/(tabs)/edit-officer-profile')}
-            />
-          )}
           <MenuItem
             iconName="account"
             title="Personal Information"
@@ -277,20 +256,6 @@ export default function ProfileScreen() {
                 <Text className="text-gray-600 text-sm">Driver License</Text>
                 <Text className="text-gray-900 font-medium">
                   {userProfile.driverLicenseNumber}
-                </Text>
-              </View>
-            </View>
-          )}
-          
-          {userProfile?.role !== 'clerk' && userProfile?.officerRegistrationNumber && (
-            <View className="p-4 border-t border-gray-200 flex-row items-center">
-              <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center mr-4">
-                <MaterialCommunityIcons name="account-details" size={20} color="#6B7280" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-gray-600 text-sm">Officer Registration</Text>
-                <Text className="text-gray-900 font-medium">
-                  {userProfile.officerRegistrationNumber}
                 </Text>
               </View>
             </View>

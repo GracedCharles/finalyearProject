@@ -27,9 +27,6 @@ const userSchema = new mongoose.Schema(
     driverLicenseNumber: {
       type: String,
     },
-    officerRegistrationNumber: {
-      type: String,
-    },
     role: {
       type: String,
       enum: ["admin", "clerk", "officer"],
