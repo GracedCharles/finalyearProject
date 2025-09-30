@@ -18,6 +18,11 @@
   ],
   "routes": [
     {
+      "src": "/socket.io/(.*)",
+      "dest": "app.js",
+      "check": true
+    },
+    {
       "src": "/(.*)",
       "dest": "app.js"
     }
