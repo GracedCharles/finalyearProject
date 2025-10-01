@@ -515,11 +515,79 @@ const getAnalytics = async (req, res) => {
   }
 };
 
+// Get recent activity for officer dashboard
+const getRecentActivity = async (req, res) => {
+  try {
+    let officer;
+    
+    // Check if user is authenticated
+    if (!req.auth || !req.auth.userId) {
+      console.log('No authentication provided for recent activity request');
+      // Let's also check if there's an authorization header
+      const authHeader = req.headers.authorization;
+      console.log('Authorization header:', authHeader);
+      
+      if (authHeader) {
+        // Try to manually decode the token
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const decoded = jwt.decode(token);
+          console.log('Manually decoded token:', decoded);
+          
+          if (decoded && decoded.sub) {
+            console.log('Found user ID in token:', decoded.sub);
+            // Try to find the user in the database
+            officer = await User.findOne({ clerkId: decoded.sub });
+            
+            if (!officer) {
+              console.log('Officer not found in database');
+              return res.status(404).json({ error: 'Officer not found' });
+            }
+          }
+        } catch (decodeError) {
+          console.error('Error manually decoding token:', decodeError);
+        }
+      }
+      
+      if (!officer) {
+        return res.status(401).json({ error: 'Unauthorized - No authentication provided' });
+      }
+    } else {
+      officer = await User.findOne({ clerkId: req.auth.userId });
+      if (!officer) {
+        return res.status(404).json({ error: 'Officer not found' });
+      }
+    }
+
+    // Get recent fines issued by the officer (last 10)
+    const recentFines = await Fine.find({ officerId: officer._id })
+      .sort({ issuedAt: -1 })
+      .limit(10)
+      .populate('offenseTypeId');
+
+    // Get recent payments (last 10)
+    const recentPayments = await Payment.find({ 
+      _id: { $in: recentFines.filter(fine => fine.paymentId).map(fine => fine.paymentId) }
+    })
+    .sort({ paidAt: -1 })
+    .limit(10);
+
+    res.json({
+      recentFines,
+      recentPayments
+    });
+  } catch (error) {
+    console.error('Error fetching recent activity:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   issueFine,
   getDashboardStats,
   getOfficerFines,
   getFineById,
   processPayment,
-  getAnalytics
+  getAnalytics,
+  getRecentActivity
 };

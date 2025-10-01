@@ -1,6 +1,6 @@
 import { addAuthHeaders } from './authHelpers';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://traffic.galantagroup.com/api';
 
 // Generic fetch function with error handling and auth headers
 const apiFetch = async (endpoint: string, options: RequestInit = {}) => {

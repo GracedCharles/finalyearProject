@@ -13,7 +13,7 @@ import { addAuthHeaders } from './authHelpers';
 // - Physical devices: Computer's IP address (same Wi-Fi network)
 const getApiBaseUrl = () => {
   // Your computer's IP address - update this to match your actual IP
-  const COMPUTER_IP = '192.168.43.72'; // Updated with your actual IP address from ipconfig
+  const COMPUTER_IP = 'https://traffic.galantagroup.com'; // Updated with your actual IP address from ipconfig
   
   // For development, we'll use a more flexible approach
   // You can override this by setting an environment variable
@@ -23,12 +23,12 @@ const getApiBaseUrl = () => {
     // Check if we're likely running on an emulator
     // Emulators typically use 10.0.2.2 to access host localhost
     // Physical devices should use the computer's IP address
-    return `http://${backendIp}:5000/api`;
+    return `http://${backendIp}/api`;
   } else if (Platform.OS === 'ios') {
-    return `http://${backendIp}:5000/api`;
+    return `http://${backendIp}/api`;
   } else {
     // Web or other platforms
-    return 'http://localhost:5000/api';
+    return 'https://traffic.galantagroup.com/api';
   }
 };
 
